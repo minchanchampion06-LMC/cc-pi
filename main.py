@@ -783,7 +783,7 @@ async def main():
 
         if music_started:
             # 1. 노래를 시작한 지 최소 5초가 지났는가? (로딩/버퍼링 찰나의 False 방지)
-            if now - last_music_check_time > 5000:
+            if now - last_music_check_time > 186000:
                 # 2. 실제로 노래가 안 나오고 있는가?
                 if not pygame.mixer.music.get_busy():
                     play_next_song()
