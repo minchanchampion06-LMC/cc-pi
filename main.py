@@ -669,14 +669,22 @@ def draw_leaderboard(surface, player, bots):
 playlist = ["fat.io/Ruff_Money.mp3", "fat.io/Windy_Road.mp3"]
 current_track_index = 0
 def play_next_song():
-    global current_track_index
+    global current_track_index, last_music_check_time
     try:
+        # 1. 인덱스 먼저 업데이트
+        current_track_index = (current_track_index + 1) % len(playlist)
+
         pygame.mixer.music.stop()
         pygame.mixer.music.unload()
         pygame.mixer.music.load(playlist[current_track_index])
+
+        # 웹 환경에서는 0(1회 재생)으로 틀고 루프에서 감시하는 것이 가장 안전합니다.
         pygame.mixer.music.play(0)
         pygame.mixer.music.set_volume(0.7)
-        current_track_index = (current_track_index + 1) % len(playlist)
+
+        # [중요] 노래를 튼 시점의 시간을 기록하여 '5초 가드' 작동 준비
+        last_music_check_time = pygame.time.get_ticks()
+        print(f"노래 교체됨: {playlist[current_track_index]}")
 
     except Exception as e:
         print(f"음악 로드 실패: {e}")
@@ -704,10 +712,11 @@ OUTSIDE_COLOR = (150, 200, 100)  # 맵 바깥 (연두색)
 GRID_COLOR = (220, 220, 220)
 
 async def main():
-    pygame.mixer.music.load("fat.io/Ruff_Money.mp3")
-    pygame.mixer.music.play(-1)  # -1을 넣으면 파이게임이 알아서 '무한 반복'합니다.
     global music_started
     global last_music_check_time
+    global current_track_index
+    pygame.mixer.music.load("fat.io/Ruff_Money.mp3")
+
 
     # 게임 시작 시점의 시간을 초기값으로 설정
     last_music_check_time = pygame.time.get_ticks()
@@ -758,6 +767,7 @@ async def main():
     clock = pygame.time.Clock()
 
     while True:
+        now = pygame.time.get_ticks()
         dt = clock.tick(60) / 1000.0  # 프레임 간의 시간 간격을 계산 (초 단위)
         dt = min(dt, 0.025)
         events = pygame.event.get()
@@ -767,8 +777,16 @@ async def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.KEYDOWN:
                 if not music_started:
-                    play_next_song()
+                    pygame.mixer.music.play(0)
+                    last_music_check_time = now  # 재생 시작 시간 기록
                     music_started = True
+
+        if music_started:
+            # 1. 노래를 시작한 지 최소 5초가 지났는가? (로딩/버퍼링 찰나의 False 방지)
+            if now - last_music_check_time > 5000:
+                # 2. 실제로 노래가 안 나오고 있는가?
+                if not pygame.mixer.music.get_busy():
+                    play_next_song()
 
         screen.fill(OUTSIDE_COLOR)
 
