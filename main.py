@@ -9,7 +9,7 @@ import sys
 pygame.init()
 pygame.mixer.init()
 try:
-    kill_sound = pygame.mixer.Sound("fat.io/kill_sound.mp3")
+    kill_sound = pygame.mixer.Sound("fat.io/kill_sound.wav")
     kill_sound.set_volume(1.0) # 볼륨 조절 (0.0 ~ 1.0)
 except:
     kill_sound = None
@@ -560,17 +560,17 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
 
     # 2. 결정된 상태에 따라 실제 이동 (이것은 매 프레임 실행)
     execute_decision(bot,dt)
-    avoid_walls(bot)
+    avoid_walls(bot,dt)
 
 # 4-8. AI 벽 피하기
-def avoid_walls(bot):
+def avoid_walls(bot,dt):
     """맵 끝에 도달하면 중앙으로 방향을 틉니다."""
     margin = 100
     if bot.x < margin or bot.x > MAP_WIDTH - margin or bot.y < margin or bot.y > MAP_HEIGHT - margin:
         # 맵의 중앙 좌표
         center_x, center_y = MAP_WIDTH // 2, MAP_HEIGHT // 2
         # 중앙을 향해 조금 더 강한 가중치로 이동하게 유도
-        bot.move_towards(center_x, center_y, True)
+        bot.move_towards(center_x, center_y, dt, reverse = False)
 
 # 4-9. AI 주변 파악
 def scan_surroundings(bot, player, other_bots):
@@ -675,7 +675,7 @@ def play_next_song():
         pygame.mixer.music.unload()
         pygame.mixer.music.load(playlist[current_track_index])
         pygame.mixer.music.play(0)
-        pygame.mixer.music.set_volume(0.4)
+        pygame.mixer.music.set_volume(0.7)
         current_track_index = (current_track_index + 1) % len(playlist)
 
     except Exception as e:
@@ -759,7 +759,7 @@ async def main():
 
     while True:
         dt = clock.tick(60) / 1000.0  # 프레임 간의 시간 간격을 계산 (초 단위)
-        dt = min(dt, 0.05)
+        dt = min(dt, 0.025)
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
