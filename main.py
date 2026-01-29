@@ -24,16 +24,16 @@ clock = pygame.time.Clock()
 # 2. 10단계 캐릭터
 
 TIER_DATA = [
-    {"tier": 1, "radius": 30, "speed": 4.0, "rotation_speed": 0.18, "color": (160, 140, 120), "img_name": "mouse.png","body_ratio": 0.75, "offset": (0, 0)},  # 쥐
-    {"tier": 2, "radius": 80, "speed": 3.3, "rotation_speed": 0.12, "color": (230, 230, 200), "img_name": "pig.png","body_ratio": 0.88, "offset": (0, 0)},  # 돼지
-    {"tier": 3, "radius": 68, "speed": 3.1, "rotation_speed": 0.11, "color": (255, 180, 200),"img_name": "gray pig.png", "body_ratio": 0.65, "offset": (0, 0)},  # 멧돼지
-    {"tier": 4, "radius": 72, "speed": 3.1, "rotation_speed": 0.15, "color": (100, 200, 100), "img_name": "wolf.png","body_ratio": 0.65, "offset": (0, 0)},  # 늑대
-    {"tier": 5, "radius": 95, "speed": 3.1, "rotation_speed": 0.15, "color": (150, 150, 150), "img_name": "bear.png","body_ratio": 0.85, "offset": (0, 0)},  # 곰
-    {"tier": 6, "radius": 98, "speed": 3.1, "rotation_speed": 0.15, "color": (255, 140, 0), "img_name": "elephant.png","body_ratio": 0.55, "offset": (0, 0)},  # 코끼리
-    {"tier": 7, "radius": 90, "speed": 3.1, "rotation_speed": 0.13, "color": (139, 69, 19), "img_name": "dragon.png","body_ratio": 0.60, "offset": (0, 0)},  # 청룡
-    {"tier": 8, "radius": 105, "speed": 3.1, "rotation_speed": 0.13, "color": (50, 50, 50),"img_name": "landmonster.png", "body_ratio": 0.36, "offset": (30, 0)},  # 랜드몬스터
-    {"tier": 9,  "radius": 120, "speed": 3.3, "rotation_speed": 0.15, "color": (0, 100, 255),"img_name": "BD.png", "body_ratio": 0.3, "offset": (-90, 7)},   # BD
-    {"tier": 10, "radius": 120, "speed": 3.5, "rotation_speed": 0.16, "color": (255, 0, 0),"img_name": "KD.png", "body_ratio": 0.3, "offset": (-122, 0)}     # KD
+    {"tier": 1, "radius": 30, "speed": 375.0, "rotation_speed": 22.5, "color": (160, 140, 120), "img_name": "mouse.png","body_ratio": 0.75, "offset": (0, 0)},  # 쥐
+    {"tier": 2, "radius": 80, "speed": 309.2, "rotation_speed": 15.0, "color": (230, 230, 200), "img_name": "pig.png","body_ratio": 0.88, "offset": (0, 0)},  # 돼지
+    {"tier": 3, "radius": 68, "speed": 290.8, "rotation_speed": 17.66, "color": (255, 180, 200),"img_name": "gray pig.png", "body_ratio": 0.65, "offset": (0, 0)},  # 멧돼지
+    {"tier": 4, "radius": 72, "speed": 290.8, "rotation_speed": 18.76, "color": (100, 200, 100), "img_name": "wolf.png","body_ratio": 0.65, "offset": (0, 0)},  # 늑대
+    {"tier": 5, "radius": 95, "speed": 290.8, "rotation_speed": 18.76, "color": (150, 150, 150), "img_name": "bear.png","body_ratio": 0.85, "offset": (0, 0)},  # 곰
+    {"tier": 6, "radius": 98, "speed": 290.8, "rotation_speed": 18.76, "color": (255, 140, 0), "img_name": "elephant.png","body_ratio": 0.55, "offset": (0, 0)},  # 코끼리
+    {"tier": 7, "radius": 90, "speed": 290.8, "rotation_speed": 16.26, "color": (139, 69, 19), "img_name": "dragon.png","body_ratio": 0.60, "offset": (0, 0)},  # 청룡
+    {"tier": 8, "radius": 105, "speed": 290.8, "rotation_speed": 16.26, "color": (50, 50, 50),"img_name": "landmonster.png", "body_ratio": 0.36, "offset": (30, 0)},  # 랜드몬스터
+    {"tier": 9,  "radius": 120, "speed": 309.2, "rotation_speed": 18.72, "color": (0, 100, 255),"img_name": "BD.png", "body_ratio": 0.3, "offset": (-90, 7)},   # BD
+    {"tier": 10, "radius": 120, "speed": 327.8, "rotation_speed": 20.0, "color": (255, 0, 0),"img_name": "KD.png", "body_ratio": 0.3, "offset": (-122, 0)}     # KD
 ]
 
 
@@ -139,17 +139,17 @@ class Entity:
             if self.stun_timer < 0:
                 self.stun_timer = 0
 
-    def update_knockback(self):
+    def update_knockback(self,dt):
         """매 프레임 호출되어 넉백 효과를 감쇠시키며 이동함"""
-        if 0 < self.knockback_speed:
+        if 0.05 < self.knockback_speed:
             # 설정된 방향으로 밀려남
-            self.x += math.cos(self.knockback_angle) * self.knockback_speed
-            self.y += math.sin(self.knockback_angle) * self.knockback_speed
+            self.x += math.cos(self.knockback_angle) * self.knockback_speed * dt
+            self.y += math.sin(self.knockback_angle) * self.knockback_speed * dt
             self.knockback_speed *= 0.9
         else:
             self.knockback_speed = 0
 
-    def move_towards(self, tx, ty, reverse=False):
+    def move_towards(self, tx, ty, dt, reverse=False):
         if self.stun_timer > 0:
             return
         dx, dy = tx - self.x, ty - self.y
@@ -166,17 +166,17 @@ class Entity:
             angle_diff = (target_angle - self.angle + math.pi) % (2 * math.pi) - math.pi
 
             # 회전 속도 제한 (한 프레임에 rotation_speed만큼만 회전)
-            if abs(angle_diff) < self.rotation_speed:
+            if abs(angle_diff) < self.rotation_speed * dt:
                 self.angle = target_angle
             else:
                 if angle_diff > 0:
-                    self.angle += self.rotation_speed
+                    self.angle += self.rotation_speed * dt
                 else:
-                    self.angle -= self.rotation_speed
+                    self.angle -= self.rotation_speed * dt
 
             # 3. 실제 이동 (현재 self.angle 방향으로 직진)
-            self.x += math.cos(self.angle) * self.speed
-            self.y += math.sin(self.angle) * self.speed
+            self.x += math.cos(self.angle) * self.speed * dt
+            self.y += math.sin(self.angle) * self.speed * dt
 
         # 맵 경계 제한
         self.x = max(0, min(MAP_WIDTH, self.x))
@@ -368,14 +368,14 @@ def apply_attack(attacker, victim, current_time, is_body_damage= 0):
         angle = math.atan2(victim.y - attacker.y, victim.x - attacker.x)
 
         # 공격자(attacker)와 피격자(victim) 모두에게 0.2초 스턴 부여
-        attacker.stun_timer = 200
-        victim.stun_timer = 200
+        attacker.stun_timer = 0.2
+        victim.stun_timer = 0.2
 
         # 피격자는 뒤로 튕겨나가고, 공격자도 반작용으로 살짝 튕김
-        victim.knockback_speed = 5
+        victim.knockback_speed = 500
         victim.knockback_angle = angle
 
-        attacker.knockback_speed = 5
+        attacker.knockback_speed = 500
         attacker.knockback_angle = angle + math.pi  # 공격자는 반대 방향
 
         if victim.hp <= 0:
@@ -394,7 +394,7 @@ def apply_attack(attacker, victim, current_time, is_body_damage= 0):
 
 
 # 4-7 AI 시스템
-def run_bot_ai(bot, player, other_bots, foods):
+def run_bot_ai(bot, player, other_bots, dt, foods):
     current_time = pygame.time.get_ticks()
 
     # 1. 결정 주기가 되었는지 확인
@@ -559,7 +559,7 @@ def run_bot_ai(bot, player, other_bots, foods):
 
 
     # 2. 결정된 상태에 따라 실제 이동 (이것은 매 프레임 실행)
-    execute_decision(bot)
+    execute_decision(bot,dt)
     avoid_walls(bot)
 
 # 4-8. AI 벽 피하기
@@ -570,7 +570,7 @@ def avoid_walls(bot):
         # 맵의 중앙 좌표
         center_x, center_y = MAP_WIDTH // 2, MAP_HEIGHT // 2
         # 중앙을 향해 조금 더 강한 가중치로 이동하게 유도
-        bot.move_towards(center_x, center_y)
+        bot.move_towards(center_x, center_y, True)
 
 # 4-9. AI 주변 파악
 def scan_surroundings(bot, player, other_bots):
@@ -591,7 +591,7 @@ def scan_surroundings(bot, player, other_bots):
     return threats, targets, same_tiers
 
 # 4-10. AI 행동 실행
-def execute_decision(bot):
+def execute_decision(bot, dt):
     tx, ty = bot.target_coords
     dist = math.hypot(tx - bot.x, ty - bot.y)
 
@@ -604,29 +604,29 @@ def execute_decision(bot):
 
             # 부드러운 회전 적용 (입을 상대방 중심으로 고정)
             angle_diff = (angle_to_center - bot.angle + math.pi) % (2 * math.pi) - math.pi
-            if abs(angle_diff) < bot.rotation_speed * 0.8:
+            if abs(angle_diff) < bot.rotation_speed * dt * 0.8:
                 bot.angle = angle_to_center
             else:
-                bot.angle += bot.rotation_speed * 0.8 if angle_diff > 0 else -bot.rotation_speed
+                bot.angle += (bot.rotation_speed * dt * 0.8) if angle_diff > 0 else -bot.rotation_speed * dt
 
             # 2. 입이 정렬되었고 대시 에너지가 있다면 순간적으로 돌진하여 물기
             if abs(math.degrees(angle_diff)) < 15:  # 15도 이내로 정렬되면
                 bot.is_dashing = True
                 # 돌진하며 약간 전진
-                bot.x += math.cos(bot.angle) * bot.speed
-                bot.y += math.sin(bot.angle) * bot.speed
+                bot.x += math.cos(bot.angle) * bot.speed * dt
+                bot.y += math.sin(bot.angle) * bot.speed * dt
         else:
             if bot != bots[0]:
                 bot.is_dashing = False
-            bot.move_towards(tx, ty)
+            bot.move_towards(tx, ty, dt)
 
     elif bot.current_decision == "flee":
         bot.is_dashing = True if bot.energy > 50 else False
-        bot.move_towards(tx, ty, reverse=True)
+        bot.move_towards(tx, ty, dt, reverse=True)
     else:
         if bot != bots[0]:
             bot.is_dashing = False
-        bot.move_towards(tx, ty)
+        bot.move_towards(tx, ty, dt)
 
 # 순위표 (리더보드)
 def draw_leaderboard(surface, player, bots):
@@ -704,6 +704,8 @@ OUTSIDE_COLOR = (150, 200, 100)  # 맵 바깥 (연두색)
 GRID_COLOR = (220, 220, 220)
 
 async def main():
+    pygame.mixer.music.load("fat.io/Ruff_Money.mp3")
+    pygame.mixer.music.play(-1)  # -1을 넣으면 파이게임이 알아서 '무한 반복'합니다.
     global music_started
     global last_music_check_time
 
@@ -730,7 +732,7 @@ async def main():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit();
+                pygame.quit()
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
@@ -752,8 +754,12 @@ async def main():
 
     cam_x, cam_y = 0, 0
     game_state = "playing"
+    # 1. 시계 설정
+    clock = pygame.time.Clock()
 
     while True:
+        dt = clock.tick(60) / 1000.0  # 프레임 간의 시간 간격을 계산 (초 단위)
+        dt = min(dt, 0.05)
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
@@ -834,14 +840,14 @@ async def main():
             for bot in bots:
                 bot.update_stun()  # 스턴 타이머 감소
                 if bot.stun_timer == 0:
-                    run_bot_ai(bot, player, [b for b in bots if b != bot], foods)
+                    run_bot_ai(bot, player, [b for b in bots if b != bot], dt, foods)
                 else:
                     # 스턴 중일 때는 관성 이동
                     bot.x += math.cos(bot.angle) * bot.speed
                     bot.y += math.sin(bot.angle) * bot.speed
 
                 bot.update_energy()
-                bot.update_knockback()  # 넉백 적용
+                bot.update_knockback(dt)  # 넉백 적용
 
             # 대시 여부 결정
             mouse_buttons = pygame.mouse.get_pressed()
@@ -851,14 +857,14 @@ async def main():
             if player.stun_timer == 0:
                 dist_to_mouse = math.hypot(world_mx - player.x, world_my - player.y)
                 if dist_to_mouse > 5:
-                    player.move_towards(world_mx, world_my)
+                    player.move_towards(world_mx, world_my, dt)
             else:
                 # 스턴 중 관성 이동
                 player.x += math.cos(player.angle) * player.speed
                 player.y += math.sin(player.angle) * player.speed
 
             player.update_energy()
-            player.update_knockback()
+            player.update_knockback(dt)
 
             # --- 4. 충돌 및 먹이 처리 ---
             # 먹이 먹기 로직 통합
@@ -922,10 +928,6 @@ async def main():
                         bot.update_stats(new_idx)
 
 
-
-
-
-
             if player.hp < 0:
                 game_state = "game_over"
 
@@ -947,13 +949,6 @@ async def main():
                     tier_num = max(0, player.tier - 5)
                     player.update_stats(tier_num)
                     game_state = "playing"
-
-        if music_started:
-            # 1. 노래가 물리적으로 완전히 멈췄는지 확인
-            if not pygame.mixer.music.get_busy():
-                # 2. 혹시나 아주 짧은 렉 때문에 멈춘 척 하는 건지 확인하기 위해
-                # 아주 짧은 딜레이(예: 0.5초)만 주고 바로 다음 곡 재생
-                play_next_song()
 
         pygame.display.flip()
         clock.tick(60)
