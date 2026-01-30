@@ -66,10 +66,14 @@ class Entity:
         self.target_coords = (x, y)  # 이동 목표 지점
         self.angle = random.uniform(0, math.pi * 2)  # 현재 바라보는 각도
         self.stun_timer = 0  # 0보다 크면 입력 무시 (단위: 밀리초)
+        self.is_charging = False
+        self.charge_timer = 0
+        self.charge_cooldown = 0
 
 
 
-    def update_stats(self, idx):
+
+    def update_stats(self, idx, is_evolution = False):
         idx = min(idx, 9)
         data = TIER_DATA[idx]
         self.tier_idx = idx
@@ -92,31 +96,45 @@ class Entity:
         self.body_ratio = data.get("body_ratio", 1.0)  # 기본값은 1.0 (이미지 전체가 몸통일 때)
         self.offset = data.get("offset") # 오프셋 정보 가져오기
 
+        # 1. 공통 이미지 크기 계산
+        display_size = int((self.radius * 2) / self.body_ratio)
         try:
             raw_img = pygame.image.load(f"fat.io/{data['img_name']}").convert_alpha()
-
-            # [핵심 계산]
-            # 몸통 지름(radius * 2)이 이미지 내에서 body_ratio만큼의 비중을 가져야 하므로
-            # 전체 이미지의 크기는 (지름 / 비율) 이 되어야 합니다.
-            display_size = int((self.radius * 2) / self.body_ratio)
-
             self.image = pygame.transform.scale(raw_img, (display_size, display_size))
+            self.image = pygame.transform.scale(raw_img, (display_size, display_size))
+
+            # [추가] 멧돼지일 경우 돌진 이미지도 미리 준비
+            self.charge_image = None
+            if idx == 2:  # 멧돼지 티어
+                try:
+                    raw_charge_img = pygame.image.load("fat.io/gray pig_charge.png").convert_alpha()
+                    boost_scale = 1.25
+                    charge_display_size = int(display_size * boost_scale)
+                    # TIER_DATA의 비율(body_ratio)을 똑같이 적용해야 크기가 튀지 않습니다.
+                    self.charge_image = pygame.transform.scale(raw_charge_img, (charge_display_size, charge_display_size))
+                except:
+                    print("멧돼지 돌진 이미지를 찾을 수 없습니다.")
+                    self.charge_image = self.image  # 없으면 기본 이미지라도 할당
         except:
             self.image = None
+            self.charge_image = None
 
         # 부활/진화 시 현재 경험치를 해당 티어의 시작 경험치로 맞춤
-        self.xp = self.before_xp
-
-
+        if not is_evolution:
+            # 부활하거나 처음 태어날 때만 경험치를 티어 시작점으로 설정
+            self.xp = self.before_xp
+        else:
+            # 진화할 때는 self.xp를 건드리지 않음!
+            # gain_xp에서 넘겨준 경험치가 그대로 유지됨
+            pass
 
     def gain_xp(self, amount):
         self.xp += amount
-        # 경험치가 꽉 찼고, 아직 최고 단계가 아니라면 진화!
-        if self.xp >= self.max_xp and self.tier_idx < 9:
-            self.update_stats(self.tier_idx + 1)
-            self.hp = self.max_hp
-            self.xp = self.before_xp
-            print(f"{'봇' if self.is_bot else '플레이어'}가 {self.tier}단계로 진화했습니다!")
+        # while을 사용해서 한 번에 여러 단계 진화 가능하게 함
+        while self.tier_idx < 9 and self.xp >= self.max_xp:
+            self.tier_idx += 1
+            # [중요] 진화 옵션을 True로 설정!
+            self.update_stats(self.tier_idx, is_evolution=True)
 
     def update_energy(self):
         """에너지 소모 및 회복 로직"""
@@ -141,7 +159,7 @@ class Entity:
 
     def update_knockback(self,dt):
         """매 프레임 호출되어 넉백 효과를 감쇠시키며 이동함"""
-        if 0.05 < self.knockback_speed:
+        if 10 < self.knockback_speed:
             # 설정된 방향으로 밀려남
             self.x += math.cos(self.knockback_angle) * self.knockback_speed * dt
             self.y += math.sin(self.knockback_angle) * self.knockback_speed * dt
@@ -182,66 +200,55 @@ class Entity:
         self.x = max(0, min(MAP_WIDTH, self.x))
         self.y = max(0, min(MAP_HEIGHT, self.y))
 
-
-
     def draw(self, surface, cam_x, cam_y):
         sx, sy = int(self.x - cam_x), int(self.y - cam_y)
 
-        # 1. 이미지 그리기
-        if hasattr(self, 'image') and self.image:
+        # 1. 상황에 맞는 이미지 선택
+        display_img = self.image
+        if self.tier_idx == 2 and getattr(self, 'is_charging', False) and hasattr(self, 'charge_image'):
+            if self.charge_image:
+                display_img = self.charge_image
+
+        # 2. 이미지가 존재할 때만 그리기 실행
+        if display_img:
             # 현재 각도에 맞춰 이미지 회전
-            rotated_img = pygame.transform.rotate(self.image, -math.degrees(self.angle))
+            rotated_img = pygame.transform.rotate(display_img, -math.degrees(self.angle))
 
-            # --- 위치 보정(Offset) 로직 시작 ---
-            # TIER_DATA에 offset이 설정되어 있지 않으면 (0, 0) 사용
+            # 3. 위치 보정(Offset) 로직 적용
             data = TIER_DATA[self.tier_idx]
-            off_x, off_y = data.get("offset")
+            off_x, off_y = data.get("offset", (0, 0))
 
-            # 캐릭터가 바라보는 각도(self.angle)만큼 오프셋 좌표도 회전시킴
-            # (수학적 회전 행렬 공식 적용)
+            # 캐릭터가 바라보는 각도(self.angle)만큼 오프셋 좌표 회전 (수학적 회전 행렬)
             rotated_off_x = off_x * math.cos(self.angle) - off_y * math.sin(self.angle)
             rotated_off_y = off_x * math.sin(self.angle) + off_y * math.cos(self.angle)
 
-            # 최종 위치 = 원래 중심(sx, sy) + 회전된 보정치
+            # 4. 최종 위치 계산: 회전된 이미지의 rect를 생성하고 중심을 (원래중심 + 보정치)로 잡음
+            # get_rect(center=...)를 사용해야 회전 시 이미지가 찌그러지거나 튀지 않습니다.
             rect = rotated_img.get_rect(center=(sx + rotated_off_x, sy + rotated_off_y))
+
             surface.blit(rotated_img, rect.topleft)
-            # --- 위치 보정 로직 끝 ---
         else:
-            # 이미지가 없으면 기존 방식(색상 원)으로 그리기
+            # 이미지가 없을 경우 대비 (도형 그리기)
             pygame.draw.circle(surface, self.color, (sx, sy), int(self.radius))
-            # 입과 꼬리 시각화 (이미지가 없을 때만 표시)
-            self._draw_sector(surface, sx, sy, self.angle, (255, 255, 255))
-            self._draw_sector(surface, sx, sy, self.angle + math.pi, (0, 0, 0))
 
-        # --- 이름표를 캐릭터 아래에 그리기 ---
+        # --- 이름표 및 HP 바 그리기 (기존 코드 유지) ---
         name_font = pygame.font.SysFont("malgungothic", 14, bold=True)
-
-        # 색상 설정
-        if not self.is_bot:
-            name_color = (255, 255, 0)
-        elif self.name == "H_U_N_T_E_R":
-            name_color = (255, 50, 50)
-        else:
-            name_color = (255, 255, 255)
+        name_color = (255, 255, 0) if not self.is_bot else (255, 255, 255)
+        if self.name == "H_U_N_T_E_R": name_color = (255, 50, 50)
 
         name_surface = name_font.render(self.name, True, name_color)
-
-        # 위치 계산: 캐릭터 중심(sy) + 반지름(radius) + 여유공간(15)
-        # 캐릭터 바로 아래쪽에 이름이 오도록 배치합니다.
         name_rect = name_surface.get_rect(center=(sx, sy + self.radius + 15))
 
-        # 가독성을 위한 검은색 외곽선 효과 (선택 사항: 텍스트가 더 뚜렷해짐)
+        # 가독성 쉐도우
         shadow_surface = name_font.render(self.name, True, (0, 0, 0))
         surface.blit(shadow_surface, name_rect.move(1, 1))
-
         surface.blit(name_surface, name_rect)
 
-
-        # HP 바 표시
+        # HP/에너지 바 (기존 로직 그대로 사용)
         if self.hp < self.max_hp:
             pygame.draw.rect(surface, (255, 0, 0), (sx - 20, sy - self.radius - 10, 40, 5))
             pygame.draw.rect(surface, (0, 255, 0), (sx - 20, sy - self.radius - 10, 40 * (self.hp / self.max_hp), 5))
-        if not self.is_bot:  # 플레이어만 에너지 바 표시
+        if not self.is_bot:
             pygame.draw.rect(surface, (100, 100, 100), (sx - 20, sy - self.radius - 4, 40, 3))
             pygame.draw.rect(surface, (0, 255, 255), (sx - 20, sy - self.radius - 4, 40 * (self.energy / 100), 3))
 
@@ -252,7 +259,17 @@ class Entity:
             points.append((sx + math.cos(rad) * self.radius, sy + math.sin(rad) * self.radius))
         pygame.draw.polygon(surface, color, points, 2)
 
+class Mud:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.radius = 200 # 진흙탕 범위
+        self.spawn_time = pygame.time.get_ticks()
+        self.duration = 5000 # 5초 유지
+        self.color = (139, 69, 19, 150) # 반투명 갈색
 
+    def is_expired(self):
+        return pygame.time.get_ticks() - self.spawn_time > self.duration
 
 # 4. 그 외 사항
 
@@ -263,9 +280,9 @@ LAND_LAVA_ZONE = (ZONE_WIDTH, ZONE_WIDTH * 2)
 DESERT_ZONE = (ZONE_WIDTH * 2, MAP_WIDTH)
 
 FOOD_TYPES = {
-    "SEA": {"color": (0, 0, 139), "xp": 15},
-    "LAND": {"color": (255, 50, 50), "xp": 20},
-    "DESERT": {"color": (218, 165, 32), "xp": 50}
+    "SEA": {"color": (0, 0, 139), "xp": 10},
+    "LAND": {"color": (255, 50, 50), "xp": 6},
+    "DESERT": {"color": (218, 165, 32), "xp": 12}
 }
 
 # 4-2. 먹이 생성 함수
@@ -320,8 +337,14 @@ def handle_collisions(entities):
 
                 is_bd_kd_fight = (a.tier_idx >= 8 and b.tier_idx >= 8)
 
+                # 멧돼지 스킬 절대우위
+                if (a.tier_idx == 2 and a.is_charging):
+                    apply_attack(a, b, current_time, 0)
+                elif (b.tier_idx == 2 and b.is_charging):
+                    apply_attack(b, a, current_time, 0)
+
                 # 1. 동일 티어 전투 로직 (1v1 도그파이트)
-                if a.tier == b.tier or is_bd_kd_fight:
+                elif a.tier == b.tier or is_bd_kd_fight:
                     # mope.io 스타일: 살짝만 닿아도 각도가 맞으면 물림 (30% 조건 삭제 또는 완화)
                     if overlap > 2:
                         # A가 B를 물었는지 확인
@@ -350,33 +373,45 @@ def handle_collisions(entities):
 
 # 4-6 공격, 스킬
 def apply_attack(attacker, victim, current_time, is_body_damage= 0):
+    damage_multiplier = 1.0
+    angle = math.atan2(victim.y - attacker.y, victim.x - attacker.x)
+
     # 공격 쿨타임 체크 (2초)
     is_high_tier = min(1, attacker.tier // 8)
     if current_time - attacker.last_attack_time > 2000:
+
+        # [추가] 멧돼지가 돌진 중 박치기하면 데미지 2배 + 넉백 강화
+        if attacker.tier_idx == 2 and attacker.is_charging:
+            damage_multiplier = 4.5
+
+            victim.stun_timer = 1.0
+            victim.knockback_speed = 4000
+            victim.knockback_angle = angle  # 더 멀리 날아감
+
+            attacker.knockback_speed = 300
+            attacker.knockback_angle = angle + math.pi  # 공격자는 반대 방향
+            attacker.is_charging = False  # 박치기 성공 시 돌진 종료 (선택 사항)
+
+        else:
+            # 공격자(attacker)와 피격자(victim) 모두에게 0.2초 스턴 부여
+            attacker.stun_timer = 0.2
+            victim.stun_timer = 0.2
+
+            # 피격자는 뒤로 튕겨나가고, 공격자도 반작용으로 살짝 튕김
+            victim.knockback_speed = 500
+            victim.knockback_angle = angle
+
+            attacker.knockback_speed = 500
+            attacker.knockback_angle = angle + math.pi  # 공격자는 반대 방향
+
         if attacker.tier == 10:
             damage = 5 + attacker.tier * 3 + (is_body_damage * (20 + is_high_tier * 100))  # 킹드래곤 강함
             victim.hp -= damage
             attacker.last_attack_time = current_time
         else:
-            damage = 5 + attacker.tier * 3 + (is_body_damage * (20 + is_high_tier * 50))  # 티어가 높을수록 강함
+            damage = (5 + (attacker.tier * 3) + (is_body_damage * (20 + is_high_tier * 50))) * damage_multiplier  # 티어가 높을수록 강함
             victim.hp -= damage
             attacker.last_attack_time = current_time
-
-
-
-        # --- 넉백 및 스턴 로직 추가 ---
-        angle = math.atan2(victim.y - attacker.y, victim.x - attacker.x)
-
-        # 공격자(attacker)와 피격자(victim) 모두에게 0.2초 스턴 부여
-        attacker.stun_timer = 0.2
-        victim.stun_timer = 0.2
-
-        # 피격자는 뒤로 튕겨나가고, 공격자도 반작용으로 살짝 튕김
-        victim.knockback_speed = 500
-        victim.knockback_angle = angle
-
-        attacker.knockback_speed = 500
-        attacker.knockback_angle = angle + math.pi  # 공격자는 반대 방향
 
         if victim.hp <= 0:
             # 1. 즉시 XP 획득: 상대방이 다음 진화에 필요한 XP(max_xp)의 50%를 뺏어옴
@@ -385,9 +420,10 @@ def apply_attack(attacker, victim, current_time, is_body_damage= 0):
             # 처치 알림용으로 볼륨을 높여서 한 번 더 재생하거나 다른 소리 출력
             if (not attacker.is_bot or not victim.is_bot) and kill_sound:
                 kill_sound.play()
-        # 공격 성공 시 경험치 약간 획득, 감소
-        attacker.gain_xp(victim.tier * 50 )
-        victim.gain_xp(-attacker.tier * 50 )
+        else:
+            # 2. 죽이지 못했을 때만 타격 보너스 획득 (중복 방지)
+            attacker.gain_xp(victim.tier * 20)
+            victim.gain_xp(-attacker.tier * 20)
 
 
             
@@ -430,12 +466,12 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                         )
 
             elif 4 < bot.tier_idx < 7:
-                if targets:
+                if targets and random.randint(1,100) <= 80:
                     bot.current_decision = "hunt"
                     closest = min(targets, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                     bot.target_coords = (closest.x, closest.y)
                     bot.is_dashing = True
-                elif same_tiers:
+                elif same_tiers and random.randint(1,100) <= 80:
                     bot.current_decision = "tail_chase"
                     target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                     bot.target_entity = target_bot  # 이 줄이 반드시 있어야 합니다.
@@ -464,14 +500,14 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                             )
 
             else:
-                if same_tiers:
+                if same_tiers and random.randint(1,100) <= 80:
                     bot.current_decision = "tail_chase"
                     target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                     bot.target_entity = target_bot  # 이 줄이 반드시 있어야 합니다.
 
                     # 상대의 꼬리 좌표 계산
-                    tail_x = target_bot.x + math.cos(target_bot.angle + math.pi) * target_bot.radius * 0.80
-                    tail_y = target_bot.y + math.sin(target_bot.angle + math.pi) * target_bot.radius * 0.80
+                    tail_x = target_bot.x + math.cos(target_bot.angle + math.pi) * target_bot.radius * 0.70
+                    tail_y = target_bot.y + math.sin(target_bot.angle + math.pi) * target_bot.radius * 0.70
                     bot.target_coords = (tail_x, tail_y)
                     bot.is_dashing = True
 
@@ -514,7 +550,7 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                 closest = min(threats, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                 bot.target_coords = (closest.x, closest.y)
             # 2순위 - 1v1
-            elif same_tiers and decision < 0.8:
+            elif same_tiers and decision < 0.6:
                 bot.current_decision = "tail_chase"
                 # [수정] target_entity를 실제로 할당해줘야 합니다!
                 target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
@@ -630,40 +666,46 @@ def execute_decision(bot, dt):
 
 # 순위표 (리더보드)
 def draw_leaderboard(surface, player, bots):
-    # 1. 모든 개체를 하나의 리스트로 합치고 XP 기준 내림차순 정렬
+    # 1. 정렬 로직
     all_entities = [player] + bots
-    # 정렬 기준: xp (가장 높은 사람이 위로)
     sorted_entities = sorted(all_entities, key=lambda e: e.xp, reverse=True)
 
-    # 2. UI 설정
-    font = pygame.font.SysFont("malgungothic", 16, bold=True)
-    start_x = SCREEN_WIDTH - 220
-    start_y = 20
-    line_height = 25
+    # 2. UI 설정 (1.5배 스케일업)
+    # 폰트 크기 16 -> 24
+    font = pygame.font.SysFont("malgungothic", 24, bold=True)
+    # 너비 200 -> 300, 줄 높이 25 -> 38
+    box_width = 300
+    line_height = 38
+    start_x = SCREEN_WIDTH - box_width - 30  # 오른쪽 여백 조금 더 줌
+    start_y = 30
 
-    # 3. 배경 그리기 (반투명 검정색 박스)
-    # 10등까지만 표시하므로 높이를 그에 맞춤
-    bg_height = min(len(sorted_entities), 10) * line_height + 40
-    overlay = pygame.Surface((200, bg_height), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 100))  # R, G, B, Alpha(투명도)
-    surface.blit(overlay, (start_x - 10, start_y - 10))
+    # 3. 배경 그리기 (박스 크기 조절)
+    bg_height = min(len(sorted_entities), 10) * line_height + 60
+    overlay = pygame.Surface((box_width, bg_height), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 120))  # 투명도를 살짝 더 진하게(120) 해서 가독성 업!
+    surface.blit(overlay, (start_x - 15, start_y - 15))
 
     # 4. 제목 출력
     title = font.render("LEADERBOARD", True, (255, 255, 255))
     surface.blit(title, (start_x, start_y))
 
-    # 5. 1~10등까지 이름과 XP 출력
+    # 5. 1~10등 출력
     for i, ent in enumerate(sorted_entities[:10]):
-        # 내 이름(YOU)은 금색으로 표시
-        color = (255, 215, 0) if ent.name == "YOU" else (255, 255, 255)
+        # [작성하신 로직] 플레이어는 금색, 봇은 흰색
+        color = (255, 215, 0) if not ent.is_bot else (255, 255, 255)
 
+        # 랭킹과 이름 (글자가 커졌으므로 간격 조정)
         rank_text = font.render(f"{i + 1}. {ent.name}", True, color)
-        xp_text = font.render(f"{int(ent.xp)}", True, color)
+        # XP 수치
+        xp_text = font.render(f"{int(ent.xp):,}", True, color)
 
-        # 텍스트 그리기
-        surface.blit(rank_text, (start_x, start_y + 25 + (i * line_height)))
-        # XP는 오른쪽 정렬 느낌으로 배치
-        surface.blit(xp_text, (start_x + 140, start_y + 25 + (i * line_height)))
+        # 텍스트 위치 계산 (y값에 1.5배 된 line_height 적용)
+        text_y = start_y + 45 + (i * line_height)
+
+        surface.blit(rank_text, (start_x, text_y))
+        # XP는 오른쪽 정렬 느낌으로 (박스 너비에 맞춰 배치)
+        xp_rect = xp_text.get_rect(topright=(start_x + box_width - 30, text_y))
+        surface.blit(xp_text, xp_rect)
 
 # 노래 순환 리스트
 playlist = ["fat.io/Ruff_Money.mp3", "fat.io/Windy_Road.mp3"]
@@ -711,10 +753,12 @@ last_music_check_time = 0
 OUTSIDE_COLOR = (150, 200, 100)  # 맵 바깥 (연두색)
 GRID_COLOR = (220, 220, 220)
 
+
 async def main():
     global music_started
     global last_music_check_time
     global current_track_index
+    muds = []
     pygame.mixer.music.load("fat.io/Ruff_Money.mp3")
 
 
@@ -768,8 +812,19 @@ async def main():
 
     while True:
         now = pygame.time.get_ticks()
+
         dt = clock.tick(60) / 1000.0  # 프레임 간의 시간 간격을 계산 (초 단위)
         dt = min(dt, 0.025)
+
+        # 플레이어 멧돼지 돌진 타이머 관리
+        if player.is_charging:
+            player.speed = player.base_speed * 4.5  # 4.5배 가속
+            player.charge_timer -= dt * 3000
+            if player.charge_timer <= 0:
+                player.is_charging = False
+        else:
+            player.charge_cooldown -= dt * 1000
+
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
@@ -780,6 +835,21 @@ async def main():
                     pygame.mixer.music.play(0)
                     last_music_check_time = now  # 재생 시작 시간 기록
                     music_started = True
+
+            if event.type == pygame.KEYDOWN:
+                # 2단계 돼지 진흙탕 로직
+                if event.key == pygame.K_SPACE and player.tier_idx == 1:
+                    if player.energy >= 50:
+                        muds.append(Mud(player.x, player.y))
+                        player.energy -= 50
+
+                # 3단계 멧돼지 박치기 로직
+                if player.tier_idx == 2 and player.charge_cooldown <= 0:
+                    if player.energy >= 40:
+                        player.is_charging = True
+                        player.charge_timer = 2000  # 2초간 돌진
+                        player.charge_cooldown = 5000  # 5초 쿨타임
+                        player.energy -= 40
 
         if music_started:
             # 1. 노래를 시작한 지 최소 5초가 지났는가? (로딩/버퍼링 찰나의 False 방지)
@@ -823,6 +893,13 @@ async def main():
                 f_type = f.get("type", "LAND")
                 color = FOOD_TYPES[f_type]["color"]
                 pygame.draw.circle(screen, color, (int(f["x"] - cam_x), int(f["y"] - cam_y)), 10)
+
+            # 5-2.1 돼지 진흙탕 그리기
+            for mud in muds:
+                # 반투명 원 그리기
+                mud_surf = pygame.Surface((mud.radius * 2, mud.radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(mud_surf, mud.color, (mud.radius, mud.radius), mud.radius)
+                screen.blit(mud_surf, (mud.x - mud.radius - cam_x, mud.y - mud.radius - cam_y))
 
             # 5-3. 캐릭터 그리기
             for bot in bots:
@@ -915,7 +992,25 @@ async def main():
 
             # 개체 간 전투/충돌
             all_entities = [player] + bots
+
             handle_collisions(all_entities)
+
+            muds = [m for m in muds if not m.is_expired()]
+            for ent in all_entities:
+                in_mud = False
+                for mud in muds:
+                    dist = math.hypot(ent.x - mud.x, ent.y - mud.y)
+                    if dist < mud.radius:
+                        in_mud = True
+                        break
+
+                if in_mud and ent.is_bot == True:
+                    ent.speed = ent.base_speed * 0.33  # 진흙 안에서는 느리게
+                else:
+                    if not ent.is_dashing:
+                        ent.speed = ent.base_speed  # 진흙 밖 + 대시 아닐 때 정상 속도
+
+
 
             # 사망 봇 리스폰 및 먹이 드랍 수정
             for bot in bots[:]:
@@ -944,6 +1039,7 @@ async def main():
                         bot.y = random.randint(0, MAP_HEIGHT)
                         new_idx = max(0, bot.tier_idx - 5)
                         bot.update_stats(new_idx)
+
 
 
             if player.hp < 0:
