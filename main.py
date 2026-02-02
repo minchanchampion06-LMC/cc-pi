@@ -13,9 +13,12 @@ try:
     kill_sound.set_volume(1.0) # 볼륨 조절 (0.0 ~ 1.0)
     bite_sound = pygame.mixer.Sound("fat.io/wolf_cri_bite.wav")
     bite_sound.set_volume(1.0)
+    arc_wind_sound = pygame.mixer.Sound("fat.io/arctic_wind.wav")
+    arc_wind_sound.set_volume(1.0)
 except:
     kill_sound = None
     bite_sound = None
+    arc_wind_sound = None
     print("효과음 파일을 찾을 수 없습니다.")
 SCREEN_WIDTH, SCREEN_HEIGHT = 1900, 1000
 MAP_WIDTH, MAP_HEIGHT = 9000, 4000
@@ -209,12 +212,14 @@ class Entity:
                         kill_sound.play()
 
     def use_polar_bear_skill(self):
-        if self.snowball_cooldown <= 0 and self.energy >= 50:
+        if not self.snowball_active and self.snowball_cooldown <= 0 and self.energy >= 50:
             self.snowball_active = True
-            self.snowball_timer = 5.0  # 5초 지속
+            self.snowball_timer = 2.3
             self.snowball_cooldown = 8000  # 8초 쿨타임
             self.energy -= 50
             print("❄️ 북극곰 눈보라 발동!")
+        if self.snowball_active: arc_wind_sound.play()
+
 
     def update_stun(self):
         if self.stun_timer > 0:
@@ -302,10 +307,7 @@ class Entity:
         # (반드시 곰의 중심이 self.x, self.y가 되도록 그려야 합니다)
         pos_x = self.x - cam_x
         pos_y = self.y - cam_y
-        # 회전된 곰 이미지 출력 로직 (기본)
-        rotated_img_bear = pygame.transform.rotate(self.image, -math.degrees(self.angle))
-        img_rect = rotated_img_bear.get_rect(center=(pos_x, pos_y))
-        screen.blit(rotated_img_bear, img_rect)
+
         if getattr(self, 'snowball_active', False):
             for i in [0,(2/3)*math.pi, (4/3)*math.pi]:  # 0도와 180도 (정반대 방향)
                 # 공전 궤도 반지름 (곰 반지름 + 여유 공간)
@@ -318,7 +320,7 @@ class Entity:
                 snow_rect = self.snowball_img.get_rect(center=(int(snow_x), int(snow_y)))
                 screen.blit(self.snowball_img, snow_rect)
 
-        # 2. 이미지가 존재할 때만 그리기 실행
+        # 2. 그리기 실행
         if display_img:
             # 현재 각도에 맞춰 이미지 회전
             rotated_img = pygame.transform.rotate(display_img, -math.degrees(self.angle))
@@ -961,14 +963,21 @@ async def main():
                     orbit_dist = player.radius + 100  # 곰 중심에서 떨어진 거리
                     snow_x = player.x + math.cos(player.snowball_angle + i) * orbit_dist
                     snow_y = player.y + math.sin(player.snowball_angle + i) * orbit_dist
-                # 봇들과의 충돌 체크
-                for bot in bots:
-                    d = math.hypot(bot.x - snow_x, bot.y - snow_y)
-                    if d < bot.radius + 60:  # 60는 눈덩이 반지름
-                        bot.hp -= 7  # 닿아있는 동안 계속 깎임 (초당 약 42 데미지(6배))
-                        bot.knockback_speed = 100  # 살짝 밀어냄
-                        bot.knockback_angle = math.atan2(bot.y - snow_y, bot.x - snow_x)
-
+                    # 봇들과의 충돌 체크
+                    for bot in bots:
+                        d = math.hypot(bot.x - snow_x, bot.y - snow_y)
+                        if d < bot.radius + 60:  # 60는 눈덩이 반지름
+                            bot.hp -= 5  # 닿아있는 동안 계속 깎임 (초당 약 30 데미지(6배))
+                            bot.knockback_speed = 100  # 살짝 밀어냄
+                            bot.knockback_angle = math.atan2(bot.y - snow_y, bot.x - snow_x)
+                            for victim in bots:
+                                if victim.hp <= 0:
+                                    # 1. 즉시 XP 획득: 상대방이 다음 진화에 필요한 XP(max_xp)의 50%를 뺏어옴
+                                    reward_xp = victim.max_xp // 3
+                                    player.xp += reward_xp
+                                    # 처치 알림용으로 볼륨을 높여서 한 번 더 재생하거나 다른 소리 출력
+                                    if (not player.is_bot or not victim.is_bot) and kill_sound:
+                                        kill_sound.play()
 
         events = pygame.event.get()
         for event in events:
@@ -1006,7 +1015,6 @@ async def main():
 
 
         if music_started:
-            # 1. 노래를 시작한 지 최소 5초가 지났는가? (로딩/버퍼링 찰나의 False 방지)
             if now - last_music_check_time > 186000:
                 # 2. 실제로 노래가 안 나오고 있는가?
                 if not pygame.mixer.music.get_busy():
