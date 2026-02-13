@@ -1073,7 +1073,7 @@ async def main():
                         enemy.stun_timer = 1000
 
                         # [효과 3] 나(청룡) 속도 증가
-                        player.speed_boost_timer = 3000
+                        player.speed_boost_timer = 1500
 
 
                         # [효과 4] 처치 시 XP 획득
