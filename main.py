@@ -10,7 +10,7 @@ pygame.init()
 pygame.mixer.init()
 try:
     kill_sound = pygame.mixer.Sound("fat.io/kill_sound.wav")
-    kill_sound.set_volume(1.0) # 볼륨 조절 (0.0 ~ 1.0)
+    kill_sound.set_volume(1.0)  # 볼륨 조절 (0.0 ~ 1.0)
     bite_sound = pygame.mixer.Sound("fat.io/wolf_cri_bite.wav")
     bite_sound.set_volume(1.0)
     arc_wind_sound = pygame.mixer.Sound("fat.io/arctic_wind.wav")
@@ -26,20 +26,29 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("FAT.io")
 clock = pygame.time.Clock()
 
-
 # 2. 10단계 캐릭터
 
 TIER_DATA = [
-    {"tier": 1, "radius": 30, "speed": 375.0, "rotation_speed": 22.5, "color": (160, 140, 120), "img_name": "mouse.png","body_ratio": 0.75, "offset": (0, 0)},  # 쥐
-    {"tier": 2, "radius": 80, "speed": 309.2, "rotation_speed": 15.0, "color": (230, 230, 200), "img_name": "pig.png","body_ratio": 0.88, "offset": (0, 0)},  # 돼지
-    {"tier": 3, "radius": 68, "speed": 290.8, "rotation_speed": 17.66, "color": (255, 180, 200),"img_name": "gray pig.png", "body_ratio": 0.65, "offset": (0, 0)},  # 멧돼지
-    {"tier": 4, "radius": 72, "speed": 290.8, "rotation_speed": 18.76, "color": (100, 200, 100), "img_name": "wolf.png","body_ratio": 0.65, "offset": (0, 0)},  # 늑대
-    {"tier": 5, "radius": 95, "speed": 290.8, "rotation_speed": 18.76, "color": (150, 150, 150), "img_name": "bear.png","body_ratio": 0.85, "offset": (0, 0)},  # 곰
-    {"tier": 6, "radius": 98, "speed": 290.8, "rotation_speed": 18.76, "color": (255, 140, 0), "img_name": "elephant.png","body_ratio": 0.55, "offset": (0, 0)},  # 코끼리
-    {"tier": 7, "radius": 90, "speed": 290.8, "rotation_speed": 16.26, "color": (139, 69, 19), "img_name": "dragon.png","body_ratio": 0.60, "offset": (0, 0)},  # 청룡
-    {"tier": 8, "radius": 105, "speed": 290.8, "rotation_speed": 16.26, "color": (50, 50, 50),"img_name": "landmonster.png", "body_ratio": 0.36, "offset": (30, 0)},  # 랜드몬스터
-    {"tier": 9,  "radius": 120, "speed": 309.2, "rotation_speed": 18.72, "color": (0, 100, 255),"img_name": "BD.png", "body_ratio": 0.3, "offset": (-90, 7)},   # BD
-    {"tier": 10, "radius": 120, "speed": 327.8, "rotation_speed": 20.0, "color": (255, 0, 0),"img_name": "KD.png", "body_ratio": 0.3, "offset": (-122, 0)}     # KD
+    {"tier": 1, "radius": 30, "speed": 375.0, "rotation_speed": 22.5, "color": (160, 140, 120), "img_name": "mouse.png",
+     "body_ratio": 0.75, "offset": (0, 0)},  # 쥐
+    {"tier": 2, "radius": 80, "speed": 309.2, "rotation_speed": 15.0, "color": (230, 230, 200), "img_name": "pig.png",
+     "body_ratio": 0.88, "offset": (0, 0)},  # 돼지
+    {"tier": 3, "radius": 68, "speed": 290.8, "rotation_speed": 17.66, "color": (255, 180, 200),
+     "img_name": "gray pig.png", "body_ratio": 0.65, "offset": (0, 0)},  # 멧돼지
+    {"tier": 4, "radius": 72, "speed": 290.8, "rotation_speed": 18.76, "color": (100, 200, 100), "img_name": "wolf.png",
+     "body_ratio": 0.65, "offset": (0, 0)},  # 늑대
+    {"tier": 5, "radius": 95, "speed": 290.8, "rotation_speed": 18.76, "color": (150, 150, 150), "img_name": "bear.png",
+     "body_ratio": 0.85, "offset": (0, 0)},  # 곰
+    {"tier": 6, "radius": 98, "speed": 290.8, "rotation_speed": 18.76, "color": (255, 140, 0),
+     "img_name": "elephant.png", "body_ratio": 0.55, "offset": (0, 0)},  # 코끼리
+    {"tier": 7, "radius": 90, "speed": 290.8, "rotation_speed": 16.26, "color": (139, 69, 19), "img_name": "dragon.png",
+     "body_ratio": 0.60, "offset": (0, 0)},  # 청룡
+    {"tier": 8, "radius": 105, "speed": 290.8, "rotation_speed": 16.26, "color": (50, 50, 50),
+     "img_name": "landmonster.png", "body_ratio": 0.36, "offset": (30, 0)},  # 랜드몬스터
+    {"tier": 9, "radius": 120, "speed": 309.2, "rotation_speed": 18.72, "color": (0, 100, 255), "img_name": "BD.png",
+     "body_ratio": 0.3, "offset": (-90, 7)},  # BD
+    {"tier": 10, "radius": 120, "speed": 327.8, "rotation_speed": 20.0, "color": (255, 0, 0), "img_name": "KD.png",
+     "body_ratio": 0.3, "offset": (-122, 0)}  # KD
 ]
 
 
@@ -52,11 +61,11 @@ class Entity:
         if not is_bot:
             self.name = "YOU"
         else:
-            self.name = f"Bot-{random.randint(100,999)}"
-        self.xp = 0 # 현재 경험치
+            self.name = f"Bot-{random.randint(100, 999)}"
+        self.xp = 0  # 현재 경험치
         self.hp = 100
         self.max_hp = 100
-        self.update_stats(tier_idx) # 여기서 색상까지 업데이트함
+        self.update_stats(tier_idx)  # 여기서 색상까지 업데이트함
         self.angle = random.uniform(0, math.pi * 2)
         self.angle = 0
         self.last_attack_time = 0
@@ -65,7 +74,7 @@ class Entity:
         self.knockback_angle = 0  # 밀려나는 방향
         self.energy = 100  # 대시 에너지 (최대 100)
         self.is_dashing = False
-        self.dash_multiplier = 3.0  # 대시 시 속도 배율 (2배)
+        self.dash_multiplier = 3.0  # 대시 시 속도 배율 (3배)
         self.last_ai_update = 0  # 마지막으로 AI 결정을 내린 시간
         self.ai_interval = random.randint(1500, 3000)  # 결정 유지 시간 (1.5초~2.0초)
         self.current_decision = "wander"  # 현재 수행 중인 행동 상태
@@ -82,17 +91,14 @@ class Entity:
         # 이빨 이미지 크기도 적절히 조절
         self.teeth_image = pygame.transform.scale(self.teeth_image, (160, 160))
 
-
-
-
-    def update_stats(self, idx, is_evolution = False):
+    def update_stats(self, idx, is_evolution=False):
         idx = min(idx, 9)
         data = TIER_DATA[idx]
         self.tier_idx = idx
         self.tier = data["tier"]
         self.radius = data["radius"]
         self.speed = data["speed"]
-        self.color = data["color"] # 단계별 고정 색상 적용!
+        self.color = data["color"]  # 단계별 고정 색상 적용!
         self.base_speed = TIER_DATA[idx]["speed"]
         self.speed = self.base_speed
         self.base_rotation_speed = TIER_DATA[idx]["rotation_speed"]
@@ -108,18 +114,23 @@ class Entity:
             self.before_xp = 100 * (2 ** (idx - 1))
         self.body_ratio = data.get("body_ratio", 1.0)  # 기본값은 1.0 (이미지 전체가 몸통일 때)
         # 늑대
-        self.offset = data.get("offset") # 오프셋 정보 가져오기
+        self.offset = data.get("offset")  # 오프셋 정보 가져오기
         self.bite_cooldown = 0  # 늑대로 진화할 때 0으로 확실히 초기화!
         self.is_biting = False
         self.bite_timer = 0
         # 북극곰
         self.snowball_img = pygame.image.load("fat.io/snowball.png").convert_alpha()
         # 이미지를 30x30(반지름 15와 매칭)으로 강제 조절
-        self.snowball_img = pygame.transform.scale(self.snowball_img, (120,120))
+        self.snowball_img = pygame.transform.scale(self.snowball_img, (120, 120))
         self.snowball_active = False
         self.snowball_timer = 0
         self.snowball_cooldown = 0
         self.snowball_angle = 0  # 눈덩이가 회전할 현재 각도
+        # 청룡
+        self.projectiles = []
+        self.dragon_cooldown = 0  # ms 단위 (예: 5000)
+        self.speed_boost_timer = 0  # ms 단위
+        self.current_speed = self.base_speed  # 실제 이동에 사용할 변수
 
         # 1. 공통 이미지 크기 계산
         display_size = int((self.radius * 2) / self.body_ratio)
@@ -136,7 +147,8 @@ class Entity:
                     boost_scale = 1.25
                     charge_display_size = int(display_size * boost_scale)
                     # TIER_DATA의 비율(body_ratio)을 똑같이 적용해야 크기가 튀지 않습니다.
-                    self.charge_image = pygame.transform.scale(raw_charge_img, (charge_display_size, charge_display_size))
+                    self.charge_image = pygame.transform.scale(raw_charge_img,
+                                                               (charge_display_size, charge_display_size))
                 except:
                     print("멧돼지 돌진 이미지를 찾을 수 없습니다.")
                     self.charge_image = self.image  # 없으면 기본 이미지라도 할당
@@ -220,14 +232,24 @@ class Entity:
             print("❄️ 북극곰 눈보라 발동!")
         if self.snowball_active: arc_wind_sound.play()
 
+    def use_dragon_skill(self):
+        # 쿨타임이 0 이하이고 에너지가 50 이상일 때만 발사
+        if self.dragon_cooldown <= 0 and self.energy >= 50:
+            self.energy -= 50
+            self.dragon_cooldown = 2000  # 5초 쿨타임 설정
 
-    def update_stun(self):
+            # 구슬 생성 및 내 투사체 리스트에 추가
+            new_ball = EnergyBall(self.x, self.y, self.angle, self)
+            self.projectiles.append(new_ball)
+            print("🐉 청룡의 여의주 발사!")
+
+    def update_stun(self, dt):
         if self.stun_timer > 0:
-            self.stun_timer -= 1000 // 60
+            self.stun_timer -= 1000 * dt
             if self.stun_timer < 0:
                 self.stun_timer = 0
 
-    def update_knockback(self,dt):
+    def update_knockback(self, dt):
         """매 프레임 호출되어 넉백 효과를 감쇠시키며 이동함"""
         if 10 < self.knockback_speed:
             # 설정된 방향으로 밀려남
@@ -309,7 +331,7 @@ class Entity:
         pos_y = self.y - cam_y
 
         if getattr(self, 'snowball_active', False):
-            for i in [0,(2/3)*math.pi, (4/3)*math.pi]:  # 0도와 180도 (정반대 방향)
+            for i in [0, (2 / 3) * math.pi, (4 / 3) * math.pi]:  # 0도와 180도 (정반대 방향)
                 # 공전 궤도 반지름 (곰 반지름 + 여유 공간)
                 orbit_dist = self.radius + 100
                 # [핵심] 곰의 위치(pos_x, pos_y)를 기준으로 눈덩이 좌표 계산
@@ -363,8 +385,6 @@ class Entity:
             pygame.draw.rect(surface, (100, 100, 100), (sx - 20, sy - self.radius - 4, 40, 3))
             pygame.draw.rect(surface, (0, 255, 255), (sx - 20, sy - self.radius - 4, 40 * (self.energy / 100), 3))
 
-
-
     def _draw_sector(self, surface, sx, sy, center_angle, color):
         points = [(sx, sy)]
         for i in range(-22, 23, 5):
@@ -373,20 +393,60 @@ class Entity:
         pygame.draw.polygon(surface, color, points, 2)
 
 
-
-
-
 class Mud:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.radius = 200 # 진흙탕 범위
+        self.radius = 200  # 진흙탕 범위
         self.spawn_time = pygame.time.get_ticks()
-        self.duration = 5000 # 5초 유지
-        self.color = (139, 69, 19, 150) # 반투명 갈색
+        self.duration = 5000  # 5초 유지
+        self.color = (139, 69, 19, 150)  # 반투명 갈색
 
     def is_expired(self):
         return pygame.time.get_ticks() - self.spawn_time > self.duration
+
+
+class EnergyBall:
+    def __init__(self, x, y, angle, owner):
+        self.x, self.y = x, y
+        self.start_x, self.start_y = x, y
+        self.angle = angle
+        self.owner = owner
+        self.speed = 1200  # px/s (충분히 빠른 속도)
+        self.radius = owner.radius * 0.6
+        self.duration = 2000  # 2초 뒤 자동 소멸 (ms 단위)
+        self.damage = 35
+        self.current_rotation = 0
+
+        # 이미지 로드 (경로 확인 필수)
+        try:
+            raw_img = pygame.image.load("fat.io/dragon_ball.png").convert_alpha()
+            self.image = pygame.transform.scale(raw_img, (int(self.radius * 2), int(self.radius * 2)))
+        except:
+            self.image = None
+
+    def update(self, dt):
+        # 1. 이동 (위치는 dt만 곱함)
+        self.x += math.cos(self.angle) * self.speed * dt
+        self.y += math.sin(self.angle) * self.speed * dt
+
+        # 2. 회전 및 시간 감소 (ms 단위이므로 dt * 1000 곱함)
+        self.current_rotation = (self.current_rotation + 360 * dt) % 360
+        self.duration -= dt * 1000
+
+        # 3. 소멸 조건 (2초 경과 또는 1200픽셀 이상 비행)
+        dist = math.hypot(self.x - self.start_x, self.y - self.start_y)
+        if self.duration <= 0 or dist > 1200:
+            print("구슬 소멸!")
+            return False
+        return True
+
+    def draw(self, surface, cam_x, cam_y):
+        if self.image:
+            rotated_img = pygame.transform.rotate(self.image, self.current_rotation)
+            rect = rotated_img.get_rect(center=(int(self.x - cam_x), int(self.y - cam_y)))
+            surface.blit(rotated_img, rect)
+
 
 # 4. 그 외 사항
 
@@ -402,6 +462,7 @@ FOOD_TYPES = {
     "DESERT": {"color": (218, 165, 32), "xp": 12}
 }
 
+
 # 4-2. 먹이 생성 함수
 def create_food(zone=None):
     if zone is None:
@@ -414,6 +475,7 @@ def create_food(zone=None):
         rx = random.randint(DESERT_ZONE[0], DESERT_ZONE[1])
     ry = random.randint(0, MAP_HEIGHT)
     return {"x": rx, "y": ry, "type": zone}
+
 
 # 4-3. 초기 먹이 생성
 foods = [create_food() for _ in range(300)]
@@ -440,6 +502,7 @@ def check_tail_bite(attacker, target):
     is_touching_back = abs(math.degrees(tar_diff)) <= 45  # 90도 영역 허용
 
     return is_mouth_facing and is_touching_back
+
 
 # 4-5. 충돌
 def handle_collisions(entities):
@@ -488,8 +551,9 @@ def handle_collisions(entities):
                     # 강자가 약자를 공격
                     apply_attack(stronger, weaker, current_time, 1)
 
+
 # 4-6 공격, 스킬
-def apply_attack(attacker, victim, current_time, is_body_damage= 0):
+def apply_attack(attacker, victim, current_time, is_body_damage=0):
     damage_multiplier = 1.0
     angle = math.atan2(victim.y - attacker.y, victim.x - attacker.x)
 
@@ -526,7 +590,8 @@ def apply_attack(attacker, victim, current_time, is_body_damage= 0):
             victim.hp -= damage
             attacker.last_attack_time = current_time
         else:
-            damage = (5 + (attacker.tier * 3) + (is_body_damage * (20 + is_high_tier * 50))) * damage_multiplier  # 티어가 높을수록 강함
+            damage = (5 + (attacker.tier * 3) + (
+                        is_body_damage * (20 + is_high_tier * 50))) * damage_multiplier  # 티어가 높을수록 강함
             victim.hp -= damage
             attacker.last_attack_time = current_time
 
@@ -541,9 +606,6 @@ def apply_attack(attacker, victim, current_time, is_body_damage= 0):
             # 2. 죽이지 못했을 때만 타격 보너스 획득 (중복 방지)
             attacker.gain_xp(victim.tier * 20)
             victim.gain_xp(-attacker.tier * 20)
-
-
-            
 
 
 # 4-7 AI 시스템
@@ -583,12 +645,12 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                         )
 
             elif 4 < bot.tier_idx < 7:
-                if targets and random.randint(1,100) <= 80:
+                if targets and random.randint(1, 100) <= 80:
                     bot.current_decision = "hunt"
                     closest = min(targets, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                     bot.target_coords = (closest.x, closest.y)
                     bot.is_dashing = True
-                elif same_tiers and random.randint(1,100) <= 80:
+                elif same_tiers and random.randint(1, 100) <= 80:
                     bot.current_decision = "tail_chase"
                     target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                     bot.target_entity = target_bot  # 이 줄이 반드시 있어야 합니다.
@@ -617,7 +679,7 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                             )
 
             else:
-                if same_tiers and random.randint(1,100) <= 80:
+                if same_tiers and random.randint(1, 100) <= 80:
                     bot.current_decision = "tail_chase"
                     target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
                     bot.target_entity = target_bot  # 이 줄이 반드시 있어야 합니다.
@@ -710,20 +772,21 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                             random.randint(0, MAP_HEIGHT)
                         )
 
-
     # 2. 결정된 상태에 따라 실제 이동 (이것은 매 프레임 실행)
-    execute_decision(bot,dt)
-    avoid_walls(bot,dt)
+    execute_decision(bot, dt)
+    avoid_walls(bot, dt)
+
 
 # 4-8. AI 벽 피하기
-def avoid_walls(bot,dt):
+def avoid_walls(bot, dt):
     """맵 끝에 도달하면 중앙으로 방향을 틉니다."""
     margin = 100
     if bot.x < margin or bot.x > MAP_WIDTH - margin or bot.y < margin or bot.y > MAP_HEIGHT - margin:
         # 맵의 중앙 좌표
         center_x, center_y = MAP_WIDTH // 2, MAP_HEIGHT // 2
         # 중앙을 향해 조금 더 강한 가중치로 이동하게 유도
-        bot.move_towards(center_x, center_y, dt, reverse = False)
+        bot.move_towards(center_x, center_y, dt, reverse=False)
+
 
 # 4-9. AI 주변 파악
 def scan_surroundings(bot, player, other_bots):
@@ -742,6 +805,7 @@ def scan_surroundings(bot, player, other_bots):
             else:
                 same_tiers.append(other)
     return threats, targets, same_tiers
+
 
 # 4-10. AI 행동 실행
 def execute_decision(bot, dt):
@@ -780,6 +844,7 @@ def execute_decision(bot, dt):
         if bot != bots[0]:
             bot.is_dashing = False
         bot.move_towards(tx, ty, dt)
+
 
 # 순위표 (리더보드)
 def draw_leaderboard(surface, player, bots):
@@ -824,9 +889,12 @@ def draw_leaderboard(surface, player, bots):
         xp_rect = xp_text.get_rect(topright=(start_x + box_width - 30, text_y))
         surface.blit(xp_text, xp_rect)
 
+
 # 노래 순환 리스트
 playlist = ["fat.io/Ruff_Money.mp3", "fat.io/Windy_Road.mp3"]
 current_track_index = 0
+
+
 def play_next_song():
     global current_track_index, last_music_check_time
     try:
@@ -850,18 +918,14 @@ def play_next_song():
 
 
 # 4-11. 초기 생성 💡
-player = Entity(MAP_WIDTH // 2, MAP_HEIGHT // 2, 0, is_bot=False)
+player = Entity(MAP_WIDTH // 2, MAP_HEIGHT // 2, 6, is_bot=False)
 
 bots = [Entity(random.randint(0, MAP_WIDTH), random.randint(0, MAP_HEIGHT), random.randint(0, 3), is_bot=True) for _
         in range(15)]
 
-hunter_bot = Entity(random.randint(6000, 9000), random.randint(0, MAP_HEIGHT), 4, is_bot=True) # 처음부터 4단계로 시작
+hunter_bot = Entity(random.randint(6000, 9000), random.randint(0, MAP_HEIGHT), 4, is_bot=True)  # 처음부터 4단계로 시작
 hunter_bot.name = "H_U_N_T_E_R"
 bots.insert(0, hunter_bot)
-
-
-
-
 
 # 메인 루프
 
@@ -877,7 +941,6 @@ async def main():
     global current_track_index
     muds = []
     pygame.mixer.music.load("fat.io/Ruff_Money.mp3")
-
 
     # 게임 시작 시점의 시간을 초기값으로 설정
     last_music_check_time = pygame.time.get_ticks()
@@ -959,7 +1022,7 @@ async def main():
                 player.snowball_cooldown -= dt * 1000
             if getattr(player, 'snowball_active', False):
                 # 눈덩이 3개의 위치 계산 (120도 차이)
-                for i in [0,(2/3)*math.pi, (4/3)*math.pi]:  # 0도와 180도
+                for i in [0, (2 / 3) * math.pi, (4 / 3) * math.pi]:  # 0도와 180도
                     orbit_dist = player.radius + 100  # 곰 중심에서 떨어진 거리
                     snow_x = player.x + math.cos(player.snowball_angle + i) * orbit_dist
                     snow_y = player.y + math.sin(player.snowball_angle + i) * orbit_dist
@@ -978,6 +1041,50 @@ async def main():
                                     # 처치 알림용으로 볼륨을 높여서 한 번 더 재생하거나 다른 소리 출력
                                     if (not player.is_bot or not victim.is_bot) and kill_sound:
                                         kill_sound.play()
+
+        # 플레이어 청룡 타이머 관리
+        if player.tier_idx == 6:
+            if player.dragon_cooldown > 0:
+                player.dragon_cooldown -= dt * 1000
+
+            # 이속 버프 감소
+            if player.speed_boost_timer > 0:
+                player.is_charging = True
+                player.speed_boost_timer -= dt * 1000
+                if player.speed_boost_timer <= 0:
+                    player.is_charging = False  # 원래 속도 복구
+
+            for ball in player.projectiles[:]:
+                if not ball.update(dt):
+                    player.projectiles.remove(ball)
+                    continue
+
+                # 적들과 충돌 체크
+                for enemy in bots:
+                    if enemy.hp <= 0: continue
+
+                    dist = math.hypot(ball.x - enemy.x, ball.y - enemy.y)
+                    if dist < (ball.radius + enemy.radius):
+                        # [효과 1] 대미지 (상대가 나보다 낮으면 3배)
+                        dmg = ball.damage * (3 if enemy.tier_idx < player.tier_idx else 1)
+                        enemy.hp -= dmg
+
+                        # [효과 2] 적 스턴
+                        enemy.stun_timer = 1000
+
+                        # [효과 3] 나(청룡) 속도 증가
+                        player.speed_boost_timer = 3000
+
+
+                        # [효과 4] 처치 시 XP 획득
+                        if enemy.hp <= 0:
+                            reward = enemy.max_xp // 3
+                            player.gain_xp(reward)
+                            if kill_sound: kill_sound.play()
+
+                        # 적중했으니 구슬 제거
+                        player.projectiles.remove(ball)
+                        break
 
         events = pygame.event.get()
         for event in events:
@@ -1013,6 +1120,10 @@ async def main():
                     if player.tier_idx == 4:
                         player.use_polar_bear_skill()
 
+                    # 7단계 청룡 에너지볼 로직
+                    if player.tier_idx == 6:
+                        player.use_dragon_skill()
+
 
         if music_started:
             if now - last_music_check_time > 186000:
@@ -1029,9 +1140,6 @@ async def main():
             cam_x = player.x - SCREEN_WIDTH // 2
             cam_y = player.y - SCREEN_HEIGHT // 2
             world_mx, world_my = mx + cam_x, my + cam_y
-
-
-
 
             # --- 5. 그리기 ---
             # 5-1. 지형 배경 그리기 (순서 중요: 배경 -> 그리드 -> 먹이 -> 캐릭터)
@@ -1062,6 +1170,10 @@ async def main():
                 mud_surf = pygame.Surface((mud.radius * 2, mud.radius * 2), pygame.SRCALPHA)
                 pygame.draw.circle(mud_surf, mud.color, (mud.radius, mud.radius), mud.radius)
                 screen.blit(mud_surf, (mud.x - mud.radius - cam_x, mud.y - mud.radius - cam_y))
+
+            # 청룡 에너지볼 그리기
+            for ball in player.projectiles:
+                ball.draw(screen, cam_x, cam_y)
 
             # 5-3. 캐릭터 그리기
             for bot in bots:
@@ -1095,7 +1207,7 @@ async def main():
 
             # --- 2. 봇 상태 업데이트 (AI + 물리) ---
             for bot in bots:
-                bot.update_stun()  # 스턴 타이머 감소
+                bot.update_stun(dt)  # 스턴 타이머 감소
                 if bot.stun_timer <= 0:
                     run_bot_ai(bot, player, [b for b in bots if b != bot], dt, foods)
                 else:
@@ -1115,9 +1227,12 @@ async def main():
                 # 늑대 물기 중 (가장 느림)
                 player.speed = player.base_speed * 0.3
                 player.rotation_speed = player.base_rotation_speed * 0.3
-            elif getattr(player, 'is_charging', False):
+            elif player.tier_idx == 2 and getattr(player, 'is_charging', False):
                 # 멧돼지 돌진 중 (가장 빠름 - 기존 4.5배 적용)
                 player.speed = player.base_speed * 4.5
+            elif player.tier_idx == 6 and getattr(player, 'is_charging', False):
+                # 청룡 가속 중 (가장 빠름 - 기존 3배 적용)
+                player.speed = player.base_speed * 3.0
             elif player.is_dashing:
                 # 일반 부스터 (보통 2.0배~2.5배)
                 player.speed = player.base_speed * 2.5
@@ -1128,7 +1243,7 @@ async def main():
                 player.rotation_speed = player.base_rotation_speed
 
             # 2. 이동 적용
-            player.update_stun()
+            player.update_stun(dt)
             if player.stun_timer == 0:
                 dist_to_mouse = math.hypot(world_mx - player.x, world_my - player.y)
                 if dist_to_mouse > 5:
@@ -1197,8 +1312,6 @@ async def main():
                     if ent.bite_timer <= 0:
                         ent.is_biting = False
 
-
-
             # 사망 봇 리스폰 및 먹이 드랍 수정
             for bot in bots[:]:
                 if bot.hp <= 0:
@@ -1217,8 +1330,8 @@ async def main():
                         })
 
                     if bot.name == "H_U_N_T_E_R":
-                        bot.x = random.randint(6000,9000)
-                        bot.y = random.randint(0,MAP_HEIGHT)
+                        bot.x = random.randint(6000, 9000)
+                        bot.y = random.randint(0, MAP_HEIGHT)
                         new_idx = max(0, bot.tier_idx - 1)
                         bot.update_stats(new_idx)
                     else:
@@ -1226,8 +1339,6 @@ async def main():
                         bot.y = random.randint(0, MAP_HEIGHT)
                         new_idx = max(0, bot.tier_idx - 5)
                         bot.update_stats(new_idx)
-
-
 
             if player.hp < 0:
                 game_state = "game_over"
@@ -1241,7 +1352,7 @@ async def main():
             text = font.render('GAME OVER - Press R to Restart', True, (255, 0, 0))
             screen.blit(text, (SCREEN_WIDTH // 2 - 400, SCREEN_HEIGHT // 2 - 40))
 
-            #미리 받아온 event리스트 활용
+            # 미리 받아온 event리스트 활용
             for event in events:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                     player.hp = player.max_hp
@@ -1255,6 +1366,7 @@ async def main():
         clock.tick(60)
         # 매 프레임마다 브라우저에게 순서 양보
         await asyncio.sleep(0.01)
+
 
 # 나중에 항목별로 코드 묶어둘 때 (즉시 실행 에러) 방지용 코드.
 if __name__ == "__main__":
