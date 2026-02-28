@@ -17,11 +17,26 @@ try:
     arc_wind_sound.set_volume(1.0)
     elephant_sound = pygame.mixer.Sound("fat.io/elephant_trunk.wav")
     elephant_sound.set_volume(1.0)
+    kd_roar_sound = pygame.mixer.Sound("fat.io/kd_roar_sound.wav")
+    kd_roar_sound.set_volume(1.0)
+    kd_fire_sound = pygame.mixer.Sound("fat.io/kd_fire_sound.wav")
+    kd_fire_sound.set_volume(1.0)
+    dragon_ball_sound = pygame.mixer.Sound("fat.io/dragon_ball_sound.wav")
+    dragon_ball_sound.set_volume(1.0)
+    land_ground_sound = pygame.mixer.Sound("fat.io/land_ground_sound.wav")
+    land_ground_sound.set_volume(0.66)
+    bd_tornado_sound = pygame.mixer.Sound("fat.io/bd_tornado_sound.wav")
+    bd_tornado_sound.set_volume(1.0)
 except:
     kill_sound = None
     bite_sound = None
     arc_wind_sound = None
     elephant_sound = None
+    kd_roar_sound = None
+    kd_fire_sound = None
+    dragon_ball_sound = None
+    land_ground_sound = None
+    bd_tornado_sound = None
     print("효과음 파일을 찾을 수 없습니다.")
 SCREEN_WIDTH, SCREEN_HEIGHT = 1900, 1000
 MAP_WIDTH, MAP_HEIGHT = 9000, 4000
@@ -72,7 +87,10 @@ class Entity:
         self.angle = random.uniform(0, math.pi * 2)
         self.angle = 0
         self.last_attack_time = 0
-        self.view_range = 400
+        if self.name == "H_U_N_T_E_R":
+            self.view_range = 1000
+        else:
+            self.view_range = 400
         self.knockback_speed = 0  # 현재 밀려나고 있는 속도
         self.knockback_angle = 0  # 밀려나는 방향
         self.energy = 100  # 대시 에너지 (최대 100)
@@ -135,10 +153,25 @@ class Entity:
         self.trunk_cooldown = 0
         self.trunk_animation_timer = 0
         # 청룡
-        self.projectiles = []
+        self.projectiles = [] # KD도 공통 사용!
         self.dragon_cooldown = 0  # ms 단위 (예: 5000)
         self.speed_boost_timer = 0  # ms 단위
         self.current_speed = self.base_speed  # 실제 이동에 사용할 변수
+        # BD
+        self.bd_cooldown = 0
+        # KD
+        self.fire_queue = []
+        self.kd_fire_image = pygame.image.load("fat.io/kd_fire.png").convert_alpha()
+        self.kd_skill_state = 0  # 스킬 상태 (0: 대기, 1: 화염 생성됨, 2: 쿨타임)
+        self.kd_stage2_timer = 0  # 2단계 활성화 대기 타이머
+        self.is_kd_flying = False  # 비행 상태 여부
+        self.kd_cooldown = 0  # 스킬 쿨타임
+        # 랜드몬스터
+        self.land_skill_active = False  # 스킬 활성화 여부
+        self.land_skill_timer = 0  # 스킬 지속 시간 타이머
+        self.land_cooldown = 0  # 스킬 쿨타임
+        self.land_damage_tick = 0  # 지속 대미지 주기 타이머
+
 
 
 
@@ -156,12 +189,30 @@ class Entity:
                     raw_charge_img = pygame.image.load("fat.io/gray pig_charge.png").convert_alpha()
                     boost_scale = 1.25
                     charge_display_size = int(display_size * boost_scale)
-                    # TIER_DATA의 비율(body_ratio)을 똑같이 적용해야 크기가 튀지 않습니다.
                     self.charge_image = pygame.transform.scale(raw_charge_img,
                                                                (charge_display_size, charge_display_size))
                 except:
                     print("멧돼지 돌진 이미지를 찾을 수 없습니다.")
                     self.charge_image = self.image  # 없으면 기본 이미지라도 할당
+            elif idx == 7:
+                try:
+                    raw_land_img = pygame.image.load("fat.io/landmonster_land_image.png").convert_alpha()
+                    boost_scale = 1.8
+                    charge_display_size = int(display_size * boost_scale)
+                    self.land_img = pygame.transform.scale(raw_land_img,
+                                                               (charge_display_size, charge_display_size))
+                except:
+                    print("랜드 땅 이미지를 찾을 수 없습니다.")
+            elif idx == 9:  # KD 티어
+                try:
+                    raw_wing_img = pygame.image.load("fat.io/kd_wing.png").convert_alpha()
+                    boost_scale = 1.6
+                    wing_display_size = int(display_size * boost_scale)
+                    self.kd_wing_image = pygame.transform.scale(raw_wing_img,
+                                                           (wing_display_size, wing_display_size))
+                except:
+                    print("KD 변신 이미지를 찾을 수 없습니다.")
+                    self.kd_wing_image = self.image  # 없으면 기본 이미지라도 할당
         except:
             self.image = None
             self.charge_image = None
@@ -216,18 +267,18 @@ class Entity:
 
             # 판정 범위 (예: 50픽셀 이내)
             if d < victim.radius + 50:
-                # 치명타 확률 (50%)
-                is_crit = random.random() < 0.5
+                # 치명타 확률 (60%)
+                is_crit = random.random() < 0.6
                 damage = 40 * (2.5 if is_crit else 1.0)  # 기본 50, 크리 시 125
 
                 victim.hp -= damage
                 if is_crit:
-                    victim.stun_timer = 1.0
+                    victim.stun_timer = 500
                     bite_sound.play()
                 else:
-                    victim.stun_timer = 0.5
+                    victim.stun_timer = 500
                 if victim.hp <= 0:
-                    # 1. 즉시 XP 획득: 상대방이 다음 진화에 필요한 XP(max_xp)의 50%를 뺏어옴
+                    # 1. 즉시 XP 획득: 상대방이 다음 진화에 필요한 XP(max_xp)의 33%를 뺏어옴
                     reward_xp = victim.max_xp // 3
                     player.xp += reward_xp
                     # 처치 알림용으로 볼륨을 높여서 한 번 더 재생하거나 다른 소리 출력
@@ -239,7 +290,7 @@ class Entity:
             self.snowball_active = True
             self.snowball_timer = 2.3
             self.snowball_cooldown = 8000  # 8초 쿨타임
-            self.energy -= 50
+            self.energy += 20
             print("❄️ 북극곰 눈보라 발동!")
         if self.snowball_active: arc_wind_sound.play()
 
@@ -290,7 +341,147 @@ class Entity:
             # 구슬 생성 및 내 투사체 리스트에 추가
             new_ball = EnergyBall(self.x, self.y, self.angle, self)
             self.projectiles.append(new_ball)
+            dragon_ball_sound.play()
             print("🐉 청룡의 여의주 발사!")
+
+    def use_land_skill(self, enemies):
+        # 스킬 조건: 쿨타임 0, 에너지 60 이상
+        if self.land_cooldown <= 0 and self.energy >= 50:
+            self.land_skill_active = True
+            self.land_skill_timer = 2000  # 지속
+            self.land_cooldown = 5000
+            self.energy -= 50
+            land_ground_sound.play()
+
+            # 시전 시 본인도 땅을 울리느라 잠깐 묵직하게 멈춤
+            self.stun_timer = 300
+            print("🌍 LAND MONSTER: 대지의 분노 발동!")
+    def update_land_effect(self, enemies, dt):
+        if not self.land_skill_active:
+            return
+
+        self.land_skill_timer -= dt * 1000
+        self.land_damage_tick -= dt * 1000
+
+        # 스킬 범위 (자기 주변 450픽셀)
+        skill_range = 450
+
+        for victim in enemies:
+            if victim is self: continue
+
+            dist = math.hypot(self.x - victim.x, self.y - victim.y)
+            if dist < skill_range:
+                # 1. 덜덜 떨리는 효과 (진동)
+                # 적의 stun_timer를 아주 짧게 반복적으로 주거나, 좌표에 직접 간섭
+                import random
+                victim.x += random.uniform(-5, 5)
+                victim.y += random.uniform(-5, 5)
+
+                # 2. 지속 대미지 (0.5초마다 적용)
+                if self.land_damage_tick <= 0:
+                    victim.hp -= 10
+                    # 적 이동 속도 저하 (둔화)
+                    victim.stun_timer = max(victim.stun_timer, 200)
+
+        if self.land_damage_tick <= 0:
+            self.land_damage_tick = 500  # 0.5초 주기 리셋
+
+        if self.land_skill_timer <= 0:
+            self.land_skill_active = False
+
+    def use_BD_skill(self):
+        # 쿨타임이 0 이하이고 에너지가 50 이상일 때만 발사
+        if self.bd_cooldown <= 0 and self.energy >= 50:
+            self.energy -= 50
+            self.bd_cooldown = 10000
+
+            # 토네이도 생성 및 내 투사체 리스트에 추가
+            new_wind = Tornado(self.x, self.y, self.angle, self)
+            self.projectiles.append(new_wind)
+            bd_tornado_sound.play()
+            print("🐉 BD의 태풍 발사!")
+
+    def use_KD_skill(self, enemies):
+        now = pygame.time.get_ticks()
+
+        # --- [1단계] 화염 난사 (스페이스바 첫 번째 클릭) ---
+        if self.kd_skill_state == 0 and self.kd_cooldown <= 0 and self.energy >= 70:
+            kd_fire_sound.play()
+            fire_counts = [1, 2, 3, 5, 8, 13]
+            spread_angle = math.radians(40)  # 부채꼴로 퍼질 전체 각도 (약 40도)
+
+            for step, count in enumerate(fire_counts):
+                # 핵심: 각 단계마다 100ms(0.1초)씩 차이를 둡니다.
+                spawn_time = now + (step * 100)
+                dist = self.radius + ((step + 1) * 120)
+
+                for j in range(count):
+                    angle_offset = (j / (count - 1) - 0.5) * spread_angle if count > 1 else 0
+                    final_angle = self.angle + angle_offset
+
+                    # 생성할 정보를 리스트에 저장 (실제 생성은 루프에서!)
+                    self.fire_queue.append({
+                        'spawn_at': spawn_time,
+                        'x': self.x + math.cos(final_angle) * dist,
+                        'y': self.y + math.sin(final_angle) * dist,
+                        'angle': final_angle
+                    })
+
+
+            # 2. 스킬 상태 업데이트 및 스턴 (ms 단위 준수!) [2026-02-11]
+            self.energy -= 70
+            self.kd_skill_state = 1
+            self.kd_stage2_timer = now + (len(fire_counts) * 100) + 1000
+            self.stun_timer = 50  # 화염 난사 시 0.05초간 묵직하게 멈춤
+
+            print(f"🔥 [KD 스킬 1단계] 피보나치 화염 방사! 총 {sum(fire_counts)}개 생성")
+
+
+        # --- [2단계] 고속 비행 및 충격파 (스페이스바 두 번째 클릭) ---
+        elif self.kd_skill_state == 1 and now >= self.kd_stage2_timer:
+            kd_roar_sound.play()
+            # 1. 고속 비행 설정
+            self.is_kd_flying = True
+            self.fly_timer = 800
+
+            # 비행 방향: 마지막 불이 생성된 방향 또는 마우스 방향
+            mx, my = pygame.mouse.get_pos()
+            cam_x = self.x - SCREEN_WIDTH // 2
+            cam_y = self.y - SCREEN_HEIGHT // 2
+            fly_dir = math.atan2(my + cam_y - self.y, mx + cam_x - self.x)
+            self.angle = fly_dir  # 비행 방향으로 몸 돌리기
+            self.speed = self.base_speed * 5  # 속도 5배
+
+            # 2. 넉백 및 충격파 처리 (코끼리 스킬 수정 경험 반영)
+            print(f"🐉 [KD 스킬 2단계] 고속 비행 시작! (충격파 준비)")
+
+            # 3. 스킬 상태 완료 및 쿨타임 시작
+            self.kd_skill_state = 2
+            self.kd_cooldown = 4000
+            self.check_kd_shockwave([b for b in bots if b != player])
+
+    def check_kd_shockwave(self, enemies):
+
+        shockwave_range = 600  # 넓은 범위
+
+        for victim in enemies:
+            if victim is self: continue
+
+            dist = math.hypot(self.x - victim.x, self.y - victim.y)
+            if dist < shockwave_range:
+                # 대미지 적용 (기본 60 + 티어별 추가 대미지)
+                total_damage = 6 + (victim.tier_idx * 5)
+                victim.hp -= total_damage
+
+                # [핵심] 적 기절 시간: ms 단위로 확실하게!
+                victim.stun_timer = 1500  # 1.5초 기절
+
+                # 강력한 넉백 처리
+                push_dir = math.atan2(victim.y - self.y, victim.x - self.x)
+                victim.knockback_speed = 2000
+                victim.knockback_angle = push_dir
+
+        print(f"💥 [KD 스킬 2단계] 충격파 발동! 주변 적 날려버림.")
 
 
     def update_stun(self, dt):
@@ -415,8 +606,14 @@ class Entity:
 
             surface.blit(gradient_surface, (sx - center_g_x, sy - center_g_y))
 
+        # 1-5. KD 비행 상태 이미지
+        if self.tier_idx == 9 and getattr(self, 'is_kd_flying', False):
+            rotated_wing = pygame.transform.rotate(self.kd_wing_image, math.degrees(-self.angle) - 90)
+            rect = rotated_wing.get_rect(center=(self.x - cam_x, self.y - cam_y))
+            screen.blit(rotated_wing, rect.topleft)
+
         # 2. 그리기 실행
-        if display_img:
+        elif display_img:
             # 현재 각도에 맞춰 이미지 회전
             rotated_img = pygame.transform.rotate(display_img, -math.degrees(self.angle))
 
@@ -520,7 +717,73 @@ class EnergyBall:
             rect = rotated_img.get_rect(center=(int(self.x - cam_x), int(self.y - cam_y)))
             surface.blit(rotated_img, rect)
 
+class Tornado:
+    def __init__(self, x, y, angle, owner):
+        self.x, self.y = x, y
+        self.start_x, self.start_y = x, y
+        self.angle = angle
+        self.owner = owner
+        self.speed = 800  # px/s (적당한 속도)
+        self.radius = owner.radius * 2
+        self.duration = 3000  # 2초 뒤 자동 소멸 (ms 단위)
+        self.damage = 2
+        self.current_rotation = 0
 
+        # 이미지 로드 (경로 확인 필수)
+        try:
+            raw_img = pygame.image.load("fat.io/bd_tornado_image.png").convert_alpha()
+            self.image = pygame.transform.scale(raw_img, (int(self.radius * 3), int(self.radius * 3)))
+        except:
+            self.image = None
+
+    def update(self, dt):
+        # 1. 이동 (위치는 dt만 곱함)
+        self.x += math.cos(self.angle) * self.speed * dt
+        self.y += math.sin(self.angle) * self.speed * dt
+
+        # 2. 회전 및 시간 감소 (ms 단위이므로 dt * 1000 곱함)
+        self.current_rotation = (self.current_rotation + 360 * dt) % 360
+        self.duration -= dt * 1000
+
+        # 3. 소멸 조건 (2초 경과 또는 1200픽셀 이상 비행)
+        dist = math.hypot(self.x - self.start_x, self.y - self.start_y)
+        if self.duration <= 0 or dist > 1200:
+            print("구슬 소멸!")
+            return False
+        return True
+
+    def draw(self, surface, cam_x, cam_y):
+        if self.image:
+            rotated_img = pygame.transform.rotate(self.image, self.current_rotation)
+            rect = rotated_img.get_rect(center=(int(self.x - cam_x), int(self.y - cam_y)))
+            surface.blit(rotated_img, rect)
+
+class FireBall:
+    def __init__(self, x, y, angle, image):
+        self.x = x
+        self.y = y
+        self.angle = angle
+        self.original_image = image
+        # 이미지 크기 조정 (필요시)
+        self.image = pygame.transform.scale(image, (120, 120))
+        self.rect = self.image.get_rect(center=(x, y))
+
+        # 지속 시간 설정 (ms 단위) [2026-02-11]
+        self.duration = 1800
+        self.spawn_time = pygame.time.get_ticks()
+        self.damage = 15  # 닿아있는 동안 줄 대미지
+
+
+    def update(self, dt):
+        # 지속 시간이 다 되면 False 반환하여 제거 유도
+        self.duration -= dt * 1000
+        return self.duration > 0
+
+    def draw(self, screen, cam_x, cam_y):
+        # 각도에 맞게 회전하여 그리기
+        rotated_image = pygame.transform.rotate(self.image, math.degrees(-self.angle) - 90)
+        new_rect = rotated_image.get_rect(center=(self.x - cam_x, self.y - cam_y))
+        screen.blit(rotated_image, new_rect.topleft)
 
 
 # 4. 그 외 사항
@@ -691,6 +954,7 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
     if current_time - bot.last_ai_update > bot.ai_interval:
         bot.last_ai_update = current_time
 
+        # 헌터 행동 로직
         if bot.name == "H_U_N_T_E_R":
             # 결정 주기도 랜덤하게 바꿔주면 봇마다 개성이 생깁니다. ( 원하면 수정 필요 )
             bot.ai_interval = random.randint(100, 200)
@@ -699,7 +963,7 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
             threats, targets, same_tiers = scan_surroundings(bot, player, other_bots)
 
             # 새로운 상태(Decision) 결정
-            if bot.tier_idx <= 4:
+            if bot.tier_idx <= 3:
                 bot.current_decision = "wander"
                 bot.target_entity = None
 
@@ -719,21 +983,21 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                             random.randint(0, MAP_HEIGHT)
                         )
 
-            elif 4 < bot.tier_idx < 7:
-                if targets and random.randint(1, 100) <= 80:
-                    bot.current_decision = "hunt"
-                    closest = min(targets, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
-                    bot.target_coords = (closest.x, closest.y)
-                    bot.is_dashing = True
-                elif same_tiers and random.randint(1, 100) <= 80:
+            elif 3 < bot.tier_idx < 7:
+                if same_tiers:
                     bot.current_decision = "tail_chase"
                     target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
-                    bot.target_entity = target_bot  # 이 줄이 반드시 있어야 합니다.
-
+                    bot.target_entity = target_bot
                     # 상대의 꼬리 좌표 계산
                     tail_x = target_bot.x + math.cos(target_bot.angle + math.pi) * target_bot.radius * 0.80
                     tail_y = target_bot.y + math.sin(target_bot.angle + math.pi) * target_bot.radius * 0.80
                     bot.target_coords = (tail_x, tail_y)
+
+                elif targets:
+                    bot.current_decision = "hunt"
+                    closest = min(targets, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
+                    bot.target_coords = (closest.x, closest.y)
+                    bot.is_dashing = True
                 else:
                     bot.current_decision = "wander"
                     bot.target_entity = None
@@ -745,9 +1009,11 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                         # 2. 시야 내 먹이 중 가장 가까운 것 선택
                         closest_food = min(visible_foods, key=lambda f: math.hypot(bot.x - f["x"], bot.y - f["y"]))
                         bot.target_coords = (closest_food["x"], closest_food["y"])
+                        bot.is_dashing = True
                     else:
                         # 3. 시야 내에 먹이가 없다면, 랜덤한 방향으로 멀리 이동 (새로운 먹이를 찾기 위해)
-                        if random.random() < 0.5:  # 너무 자주 바꾸지 않도록 확률 부여
+                        if random.random() < 0.2:  # 너무 자주 바꾸지 않도록 확률 부여
+                            bot.is_dashing = True
                             bot.target_coords = (
                                 random.randint(0, MAP_WIDTH),
                                 random.randint(0, MAP_HEIGHT)
@@ -757,7 +1023,7 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                 if same_tiers and random.randint(1, 100) <= 80:
                     bot.current_decision = "tail_chase"
                     target_bot = min(same_tiers, key=lambda t: math.hypot(bot.x - t.x, bot.y - t.y))
-                    bot.target_entity = target_bot  # 이 줄이 반드시 있어야 합니다.
+                    bot.target_entity = target_bot
 
                     # 상대의 꼬리 좌표 계산
                     tail_x = target_bot.x + math.cos(target_bot.angle + math.pi) * target_bot.radius * 0.70
@@ -782,13 +1048,17 @@ def run_bot_ai(bot, player, other_bots, dt, foods):
                         # 2. 시야 내 먹이 중 가장 가까운 것 선택
                         closest_food = min(visible_foods, key=lambda f: math.hypot(bot.x - f["x"], bot.y - f["y"]))
                         bot.target_coords = (closest_food["x"], closest_food["y"])
+                        bot.is_dashing = True
                     else:
                         # 3. 시야 내에 먹이가 없다면, 랜덤한 방향으로 멀리 이동 (새로운 먹이를 찾기 위해)
+                        bot.is_dashing = True
                         if random.random() < 0.5:  # 너무 자주 바꾸지 않도록 확률 부여
                             bot.target_coords = (
                                 random.randint(0, MAP_WIDTH),
                                 random.randint(0, MAP_HEIGHT)
                             )
+
+        # 다른 봇
         else:
             # 결정 주기도 랜덤하게 바꿔주면 봇마다 개성이 생깁니다. ( 원하면 수정 필요 )
             bot.ai_interval = random.randint(200, 300)
@@ -995,7 +1265,7 @@ def play_next_song():
 # 4-11. 초기 생성 💡
 player = Entity(MAP_WIDTH // 2, MAP_HEIGHT // 2, 0, is_bot=False)
 
-bots = [Entity(random.randint(0, MAP_WIDTH), random.randint(0, MAP_HEIGHT), random.randint(0, 3), is_bot=True) for _
+bots = [Entity(random.randint(0, MAP_WIDTH), random.randint(0, MAP_HEIGHT), random.randint(0, 2), is_bot=True) for _
         in range(15)]
 
 hunter_bot = Entity(random.randint(6000, 9000), random.randint(0, MAP_HEIGHT), 4, is_bot=True)  # 처음부터 4단계로 시작
@@ -1139,37 +1409,107 @@ async def main():
                 if player.speed_boost_timer <= 0:
                     player.is_charging = False  # 원래 속도 복구
 
+        # 플레이어 랜드몬스터 타이머 관리
+        if player.tier_idx == 7:
+            if player.land_cooldown > 0:
+                player.land_cooldown -= dt * 1000
+            player.update_land_effect([b for b in bots if b != player], dt)
+
+        # 플레이어 BD 타이머 관리
+        if player.tier_idx == 8:
+            if player.bd_cooldown > 0:
+                player.bd_cooldown -= dt * 1000
+
+        # 플레이어 KD 타이머 관리
+        if player.tier_idx == 9:
+            if player.kd_cooldown > 0:
+                player.kd_cooldown -= dt * 1000
+
+            for fire_info in player.fire_queue[:]:  # 복사본으로 루프 돌리기
+                if now >= fire_info['spawn_at']:
+                    # 드디어 실제 FireBall 생성!
+                    new_fire = FireBall(fire_info['x'], fire_info['y'], fire_info['angle'], player.kd_fire_image)
+                    player.projectiles.append(new_fire)
+                    # 목록에서 삭제
+                    player.fire_queue.remove(fire_info)
+
+            # 비행 시간 감소 및 원상복구
+            if player.is_kd_flying:
+                player.fly_timer -= dt * 1000
+                if player.fly_timer <= 0:
+                    player.is_kd_flying = False
+                    if player.kd_skill_state == 2:
+                        player.kd_skill_state = 0  # 쿨타임 다 되면 다시 0
+
+        if player.tier_idx == 6 or player.tier_idx == 8 or player.tier_idx == 9:
             for ball in player.projectiles[:]:
-                if not ball.update(dt):
-                    player.projectiles.remove(ball)
-                    continue
-
-                # 적들과 충돌 체크
-                for enemy in bots:
-                    if enemy.hp <= 0: continue
-
-                    dist = math.hypot(ball.x - enemy.x, ball.y - enemy.y)
-                    if dist < (ball.radius + enemy.radius):
-                        # [효과 1] 대미지 (상대가 나보다 낮으면 3배)
-                        dmg = ball.damage * (3 if enemy.tier_idx < player.tier_idx else 1)
-                        enemy.hp -= dmg
-
-                        # [효과 2] 적 스턴
-                        enemy.stun_timer = 1000
-
-                        # [효과 3] 나(청룡) 속도 증가
-                        player.speed_boost_timer = 1500
-
-
-                        # [효과 4] 처치 시 XP 획득
-                        if enemy.hp <= 0:
-                            reward = enemy.max_xp // 3
-                            player.gain_xp(reward)
-                            if kill_sound: kill_sound.play()
-
-                        # 적중했으니 구슬 제거
+                # FireBall인지 일반 구슬인지 확인 (FireBall은 위치 고정형)
+                if isinstance(ball, FireBall):
+                    if not ball.update(dt):
                         player.projectiles.remove(ball)
-                        break
+                        continue
+
+                    # 봇들과의 충돌 체크 (불 위에 서 있으면 대미지)
+                    for enemy in bots:
+                        dist = math.hypot(ball.x - enemy.x, ball.y - enemy.y)
+                        if dist < (enemy.radius + 40):  # 불의 히트박스 범위
+                            enemy.hp -= ball.damage * dt  # 닿아있는 동안 지속 딜링
+
+                elif isinstance(ball, Tornado):
+                    if not ball.update(dt):
+                        player.projectiles.remove(ball)
+                        continue
+
+                    # 적들과 충돌 체크
+                    for enemy in bots:
+                        if enemy.hp <= 0: continue
+
+                        dist = math.hypot(ball.x - enemy.x, ball.y - enemy.y)
+                        if dist < (ball.radius + enemy.radius):
+                            # [효과 1] 대미지 (상대가 나보다 낮으면 2배)
+                            dmg = ball.damage * (2 if enemy.tier_idx < player.tier_idx else 1)
+                            enemy.hp -= dmg
+
+                            # [효과 2] 적 스턴
+                            enemy.stun_timer = 1000
+
+                            # [효과 3] 처치 시 XP 획득
+                            if enemy.hp <= 0:
+                                reward = enemy.max_xp // 3
+                                player.gain_xp(reward)
+                                if kill_sound: kill_sound.play()
+                            break
+                else:
+                    if not ball.update(dt):
+                        player.projectiles.remove(ball)
+                        continue
+
+                    # 적들과 충돌 체크
+                    for enemy in bots:
+                        if enemy.hp <= 0: continue
+
+                        dist = math.hypot(ball.x - enemy.x, ball.y - enemy.y)
+                        if dist < (ball.radius + enemy.radius):
+                            # [효과 1] 대미지 (상대가 나보다 낮으면 3배)
+                            dmg = ball.damage * (3 if enemy.tier_idx < player.tier_idx else 1)
+                            enemy.hp -= dmg
+
+                            # [효과 2] 적 스턴
+                            enemy.stun_timer = 1000
+
+                            # [효과 3] 나(청룡) 속도 증가
+                            player.speed_boost_timer = 1500
+
+                            # [효과 4] 처치 시 XP 획득
+                            if enemy.hp <= 0:
+                                reward = enemy.max_xp // 3
+                                player.gain_xp(reward)
+                                if kill_sound: kill_sound.play()
+
+                            # 적중했으니 구슬 제거
+                            player.projectiles.remove(ball)
+                            break
+
 
 
 
@@ -1216,6 +1556,17 @@ async def main():
                     elif player.tier_idx == 6:
                         player.use_dragon_skill()
 
+                    # 8단계 랜드몬스터 로직
+                    elif player.tier_idx == 7:
+                        player.use_land_skill([b for b in bots if b != player])
+
+                    # 9단계 BD 토네이도 로직
+                    elif player.tier_idx == 8:
+                        player.use_BD_skill()
+
+                    # 10단계 KD 화염/충격파 로직
+                    elif player.tier_idx == 9:
+                        player.use_KD_skill([b for b in bots if b != player])
 
 
         if music_started:
@@ -1264,9 +1615,17 @@ async def main():
                 pygame.draw.circle(mud_surf, mud.color, (mud.radius, mud.radius), mud.radius)
                 screen.blit(mud_surf, (mud.x - mud.radius - cam_x, mud.y - mud.radius - cam_y))
 
-            # 청룡 에너지볼 그리기
+            # 청룡 에너지볼, BD 토네이도, KD 불 그리기
             for ball in player.projectiles:
                 ball.draw(screen, cam_x, cam_y)
+
+            # 1-5. 랜드몬스터 이미지
+            if getattr(player, 'land_skill_active', False):
+                # 이미지 로드 시 변환된 land_img 사용
+                # 땅 이미지가 플레이어를 따라다니도록 설정
+                land_rect = player.land_img.get_rect(center=(player.x - cam_x, player.y - cam_y))
+                # 약간의 투명도나 깜빡임 효과를 주면 더 좋습니다.
+                screen.blit(player.land_img, land_rect.topleft)
 
             # 5-3. 캐릭터 그리기
             for bot in bots:
@@ -1316,6 +1675,7 @@ async def main():
 
 
             # 대시 여부 결정 및 속도 처리 스킬 관련
+
             mouse_buttons = pygame.mouse.get_pressed()
             player.is_dashing = True if (mouse_buttons[0] and player.energy > 5) else False
             # 1. 우선순위에 따른 속도 계산
@@ -1332,6 +1692,12 @@ async def main():
             elif player.tier_idx == 6 and getattr(player, 'is_charging', False):
                 # 청룡 가속 중 (가장 빠름 - 기존 3배 적용)
                 player.speed = player.base_speed * 3.0
+            elif player.land_skill_active:
+                # 랜드몬스터 땅 함께 속도
+                player.speed = player.base_speed * 0.8
+            elif player.tier_idx == 9 and getattr(player, 'is_kd_flying', False):
+                # KD 비행 중 (가장 빠름)
+                player.speed = player.base_speed * 5.0
             elif player.is_dashing:
                 # 일반 부스터 (보통 2.0배~2.5배)
                 player.speed = player.base_speed * 2.5
@@ -1349,9 +1715,7 @@ async def main():
                     # 위에서 정해진 player.speed를 가지고 이동합니다.
                     player.move_towards(world_mx, world_my, dt)
             else:
-                # 스턴 중 관성 이동 (기존 넉백이나 이전 속도로 밀려남)
-                player.x += math.cos(player.angle) * player.speed * dt * 60  # dt 보정 추가
-                player.y += math.sin(player.angle) * player.speed * dt * 60
+                pass
 
             player.update_energy()
             player.update_knockback(dt)
@@ -1378,7 +1742,10 @@ async def main():
                     for bot in bots:
                         if math.hypot(bot.x - f["x"], bot.y - f["y"]) < bot.radius:
                             xp_amount = FOOD_TYPES.get(f.get("type", "LAND"), FOOD_TYPES["LAND"])["xp"]
-                            bot.gain_xp(xp_amount)
+                            if bot.tier_idx <= 4:
+                                bot.gain_xp(xp_amount * 3)
+                            else:
+                                bot.gain_xp(xp_amount * 10)
                             bot.hp = min(bot.max_hp, bot.hp + 2)
 
                             foods.remove(f)
@@ -1436,7 +1803,7 @@ async def main():
                     else:
                         bot.x = random.randint(0, MAP_WIDTH)
                         bot.y = random.randint(0, MAP_HEIGHT)
-                        new_idx = max(0, bot.tier_idx - 5)
+                        new_idx = max(0, bot.tier_idx - 3)
                         bot.update_stats(new_idx)
 
             if player.hp < 0:
@@ -1459,14 +1826,14 @@ async def main():
                     player.hp = player.max_hp
                     player.x, player.y = MAP_WIDTH // 2, MAP_HEIGHT // 2
                     player.xp = 0
-                    tier_num = max(0, player.tier - 5)
+                    tier_num = max(0, player.tier - 3)
                     player.update_stats(tier_num)
                     game_state = "playing"
 
         pygame.display.flip()
         clock.tick(60)
         # 매 프레임마다 브라우저에게 순서 양보
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0)
 
 
 # 나중에 항목별로 코드 묶어둘 때 (즉시 실행 에러) 방지용 코드.
